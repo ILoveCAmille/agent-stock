@@ -25,8 +25,9 @@ class RealDataFetcher:
     """真实股票数据获取器（HTTP接口）"""
     
     def __init__(self):
-        self.session = requests.Session()
-        self.session.trust_env = False  # 绕过系统代理
+        # 清除系统代理（测试证明 requests.get 直接可用）
+        for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+            os.environ.pop(key, None)
     
     def fetch_kline(self, symbol: str, period_days: int = 500) -> pd.DataFrame:
         """
@@ -59,7 +60,7 @@ class RealDataFetcher:
         }
         
         try:
-            r = self.session.get(url, params=params, timeout=15)
+            r = requests.get(url, params=params, timeout=15)
             if r.status_code != 200:
                 raise ValueError(f"HTTP {r.status_code}")
             
@@ -109,7 +110,7 @@ class RealDataFetcher:
         url = f"http://qt.gtimg.cn/q={market}{symbol}"
         
         try:
-            r = self.session.get(url, timeout=10)
+            r = requests.get(url, timeout=10)
             if r.status_code == 200 and len(r.text) > 50:
                 return self._parse_tencent_quote(r.text)
         except Exception as e:
@@ -123,7 +124,7 @@ class RealDataFetcher:
         """
         try:
             url = f"http://api.biyingapi.com/hsrl/ssjy/{symbol}/sdfg56655ertghdsf36"
-            r = self.session.get(url, timeout=10)
+            r = requests.get(url, timeout=10)
             if r.status_code == 200:
                 data = r.json()
                 if isinstance(data, dict) and 'p' in data:
