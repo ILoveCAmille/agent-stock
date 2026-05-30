@@ -98,28 +98,10 @@ LARGE_CAP_POOL = [
 
 
 def fetch_stock_data_online(symbol, period_days=500):
-    """在线获取股票数据"""
-    import akshare as ak
-    
-    for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
-        os.environ.pop(key, None)
-    
-    end_date = datetime.now().strftime('%Y%m%d')
-    start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y%m%d')
-    
-    df = ak.stock_zh_a_hist(symbol=symbol, period="daily",
-                             start_date=start_date, end_date=end_date, adjust="qfq")
-    
-    if df is None or df.empty:
-        return None
-    
-    df = df.rename(columns={
-        '日期': 'Date', '开盘': 'Open', '收盘': 'Close',
-        '最高': 'High', '最低': 'Low', '成交量': 'Volume'
-    })
-    df['Date'] = pd.to_datetime(df['Date'])
-    df.set_index('Date', inplace=True)
-    return df
+    """在线获取股票数据（使用HTTP接口绕过代理限制）"""
+    from real_data_fetcher import RealDataFetcher
+    fetcher = RealDataFetcher()
+    return fetcher.fetch_kline(symbol, period_days)
 
 
 def generate_simulated_data(symbol, period_days=500, volatility=None):
