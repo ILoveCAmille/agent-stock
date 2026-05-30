@@ -1,21 +1,3 @@
-# 🤖 复合多AI智能体股票团队分析系统
-
-- 初心：在股市摸爬滚打多年，自学自编各种指标，花冤柉钱学习了各种战法各种策略，也曾入各种小班，总是赚少赔多，逐渐失去在股市玩的信心。自从去年deepseek上市，一直探索用ai辅助分析，且近日受tradingagents项目启发（感谢原作），多agent结合跟踪主力资金战法（某指每年收费6000rmb），用各种ai辅助编程，拼凑了这么个小程序，根据软件提供的辅助信息，实盘测试盈率还是挺高的，并且逐步形成了自己的交易系统，近一个月来，账户也慢慢在扰亏为盈。开源此软件的目的，就是为了使像我一样的小散，不再迷范。也许这个软件不能让你发大财，但是他能给你足够的信心。最后提醒：股市有风险，入市需谨慎！
-## QQ交流群：1059277514  微信交流群2：<img width="328" height="355" alt="image" src="https://github.com/user-attachments/assets/b31043de-8e9e-4b13-8b31-5c59d6f832a0" />
-
-
-## B站本地部署教程1：https://www.bilibili.com/video/BV1qHFPz9EXY/
-## docker部署教程2：https://www.bilibili.com/video/BV1j2FNz4EAi/
-## 股票知识讲解合集：https://www.bilibili.com/video/BV1Y2FGzzEeS/
-## 投资认知提升合集：https://www.bilibili.com/video/BV1ugBMBAEbW
-## 价值投资核心逻辑：https://www.bilibili.com/video/BV1eJfxBrEjZ
-
-
-## ⭐ 2026.3.23更新 - 宏观分析 🌏
-
-**新增独立板块：国家统计局官方宏观数据 × A股行业映射 × 优质标的筛选**
-
-本次新增“🌏 宏观分析”板块，优先通过国家统计局官网 `data.stats.gov.cn` 官方接口抓取核心宏观数据，再调用 `.env` 中配置的 OpenAI 兼容大模型，对当前国内宏观经济形势进行研判，并映射到 A 股行业板块和代表性标的。
 
 **核心功能：**
 - 📊 **国家统计局官方数据直连** — GDP、规上工业、CPI、PPI、PMI、M2、社零、固投、房地产开发投资、城镇调查失业率
