@@ -1620,23 +1620,7 @@ docker logs -f agentsstock1
 - [QUICK_START.md](docs/QUICK_START.md) - 快速开始指南
 - [UPDATE_LOG.md](docs/UPDATE_LOG.md) - 功能更新日志
 
-### 错误报告
-如发现bug，请查看 `BUGFIX.md` 文件了解已知问题和解决方案。
 
 ## 📜 免责声明
 
 本系统仅供学习和研究使用，不构成投资建议。股票投资有风险，入市需谨慎。使用本系统进行投资决策的风险由用户自行承担。
-
-## 🤝 贡献指南
-
-欢迎提交Issue和Pull Request！
-
-## 📄 许可证
-
-MIT License
-
----
-
-**享受AI驱动的智能股票分析体验！** 🚀📈任何疑问请留言或联系ws3101001@126.com
-
-**技术支持：山东科技大学 于舒馨**
