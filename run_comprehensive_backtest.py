@@ -151,7 +151,8 @@ def fetch_market_index(period_days: int = 750) -> pd.DataFrame:
     return None
 
 
-def prepare_comprehensive_data(df: pd.DataFrame, market_df: pd.DataFrame = None) -> pd.DataFrame:
+def prepare_comprehensive_data(df: pd.DataFrame, market_df: pd.DataFrame = None,
+                                cap_style: str = None, stock_code: str = None) -> pd.DataFrame:
     """
     准备综合回测数据：计算所有因子和五维度评分
     
@@ -164,7 +165,13 @@ def prepare_comprehensive_data(df: pd.DataFrame, market_df: pd.DataFrame = None)
     """
     from comprehensive_quant_engine import ComprehensiveQuantEngine
     
-    engine = ComprehensiveQuantEngine()
+    if cap_style:
+        engine = ComprehensiveQuantEngine(cap_style=cap_style)
+        logger.info(f"🎯 使用{ComprehensiveQuantEngine.CAP_STYLE_WEIGHTS[cap_style]['name']}权重")
+    else:
+        detected_style = ComprehensiveQuantEngine.detect_cap_style(stock_code=stock_code)
+        engine = ComprehensiveQuantEngine(cap_style=detected_style)
+        logger.info(f"🔍 自动检测市值风格: {detected_style} ({ComprehensiveQuantEngine.CAP_STYLE_WEIGHTS[detected_style]['name']})")
     
     # 1. 计算基础技术因子
     logger.info("📊 步骤1/2: 计算基础技术因子...")
@@ -339,8 +346,14 @@ def main():
     parser = argparse.ArgumentParser(description='综合量化策略回测')
     parser.add_argument('--stock', type=str, default='600519', help='股票代码（默认: 600519 贵州茅台）')
     parser.add_argument('--preset', type=str, default='balanced', 
-                        choices=['aggressive', 'balanced', 'conservative'],
+                        choices=['aggressive', 'balanced', 'conservative', 
+                                 'small_cap_momentum', 'large_cap_value'],
                         help='策略类型（默认: balanced）')
+    parser.add_argument('--cap-style', type=str, default=None,
+                        choices=['small_cap', 'mid_cap', 'large_cap'],
+                        help='市值风格（small_cap重技术+情绪，large_cap重基本面+宏观）')
+    parser.add_argument('--market-cap', type=float, default=None,
+                        help='股票总市值（亿元），用于自动判断市值风格')
     parser.add_argument('--period', type=int, default=750, help='回测数据天数（默认: 750）')
     parser.add_argument('--compare', action='store_true', help='对比所有策略')
     parser.add_argument('--no-market', action='store_true', help='不获取大盘数据')
@@ -352,8 +365,15 @@ def main():
     print("🔬 综合量化交易策略回测系统")
     print("   整合: 技术指标 | 资金流向 | 散户情绪 | 经济周期 | 股票基本面")
     print("=" * 80)
+    cap_style = args.cap_style
+    if cap_style is None and args.market_cap is not None:
+        from comprehensive_quant_engine import ComprehensiveQuantEngine
+        cap_style = ComprehensiveQuantEngine.detect_cap_style(
+            market_cap=args.market_cap, stock_code=args.stock)
+    
     print(f"  股票代码: {args.stock}")
     print(f"  策略类型: {args.preset}")
+    print(f"  市值风格: {cap_style or '自动(默认mid_cap)'}")
     print(f"  回测天数: {args.period}")
     print(f"  对比模式: {'是' if args.compare else '否'}")
     print("=" * 80)
@@ -374,7 +394,7 @@ def main():
     
     # 3. 计算综合因子和评分
     print("\n📊 步骤2: 计算五维度综合因子和评分...")
-    df = prepare_comprehensive_data(df, market_df)
+    df = prepare_comprehensive_data(df, market_df, cap_style=cap_style, stock_code=args.stock)
     
     # 打印评分摘要
     print_score_summary(df)

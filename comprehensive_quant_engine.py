@@ -16,9 +16,9 @@ from quant_factors import QuantFactors
 
 
 class ComprehensiveQuantEngine:
-    """综合量化因子引擎 - 五大维度评分系统"""
+    """综合量化因子引擎 - 五大维度评分系统（支持市值自适应权重）"""
     
-    # 各维度默认权重
+    # 各维度默认权重（中等市值平衡型）
     DEFAULT_WEIGHTS = {
         'technical': 0.30,      # 技术指标
         'fund_flow': 0.25,      # 资金流向
@@ -27,10 +27,159 @@ class ComprehensiveQuantEngine:
         'fundamental': 0.15,    # 股票基本面
     }
     
-    def __init__(self, weights: Dict[str, float] = None):
+    # 市值自适应权重预设
+    # 小市值/妖股：技术指标和散户情绪占主导（价格波动大，受情绪驱动明显）
+    # 大市值/蓝筹股：基本面和行业发展逻辑占主导（机构持仓多，估值驱动）
+    CAP_STYLE_WEIGHTS = {
+        'small_cap': {
+            'name': '小市值/妖股风格',
+            'description': '技术指标和情绪驱动为主，资金流向辅助确认',
+            'weights': {
+                'technical': 0.40,      # 技术指标权重最高
+                'fund_flow': 0.20,      # 资金流向（游资行为）
+                'sentiment': 0.25,      # 散户情绪权重高（妖股特征）
+                'macro_cycle': 0.05,    # 经济周期影响小
+                'fundamental': 0.10,    # 基本面参考权重低
+            }
+        },
+        'mid_cap': {
+            'name': '中等市值风格',
+            'description': '技术与基本面平衡，兼顾资金和情绪',
+            'weights': {
+                'technical': 0.30,
+                'fund_flow': 0.25,
+                'sentiment': 0.15,
+                'macro_cycle': 0.15,
+                'fundamental': 0.15,
+            }
+        },
+        'large_cap': {
+            'name': '大市值/蓝筹风格',
+            'description': '基本面和行业逻辑驱动为主，宏观周期辅助判断',
+            'weights': {
+                'technical': 0.15,      # 技术指标权重降低
+                'fund_flow': 0.20,      # 资金流向（机构动向）
+                'sentiment': 0.05,      # 散户情绪影响小
+                'macro_cycle': 0.25,    # 经济周期权重高
+                'fundamental': 0.35,    # 基本面权重最高
+            }
+        },
+    }
+    
+    # 市值阈值（单位：亿元）
+    CAP_THRESHOLDS = {
+        'small_cap_max': 100,      # 小市值上限100亿
+        'large_cap_min': 500,      # 大市值下限500亿
+    }
+    
+    def __init__(self, weights: Dict[str, float] = None, cap_style: str = None):
+        """
+        初始化引擎
+        
+        Args:
+            weights: 自定义权重（优先级最高）
+            cap_style: 市值风格 ('small_cap', 'mid_cap', 'large_cap')
+                      设置后自动使用对应的市值自适应权重
+        """
         self.logger = logging.getLogger(__name__)
-        self.weights = weights or self.DEFAULT_WEIGHTS
         self.qf = QuantFactors()
+        
+        if weights:
+            self.weights = weights
+        elif cap_style and cap_style in self.CAP_STYLE_WEIGHTS:
+            self.weights = self.CAP_STYLE_WEIGHTS[cap_style]['weights']
+            self.logger.info(f"使用{self.CAP_STYLE_WEIGHTS[cap_style]['name']}权重")
+        else:
+            self.weights = self.DEFAULT_WEIGHTS
+    
+    @staticmethod
+    def detect_cap_style(market_cap: float = None, stock_code: str = None,
+                          avg_amount: float = None) -> str:
+        """
+        根据市值或股票特征自动检测市值风格
+        
+        Args:
+            market_cap: 总市值（亿元）
+            stock_code: 股票代码（通过代码前缀辅助判断）
+            avg_amount: 日均成交额（万元，作为辅助判断指标）
+        
+        Returns:
+            'small_cap', 'mid_cap', 'large_cap'
+        """
+        # 优先通过市值判断
+        if market_cap is not None:
+            if market_cap < ComprehensiveQuantEngine.CAP_THRESHOLDS['small_cap_max']:
+                return 'small_cap'
+            elif market_cap >= ComprehensiveQuantEngine.CAP_THRESHOLDS['large_cap_min']:
+                return 'large_cap'
+            else:
+                return 'mid_cap'
+        
+        # 通过股票代码前缀辅助判断（A股规则）
+        if stock_code is not None:
+            code = str(stock_code).zfill(6)
+            # 创业板(300)/科创板(688)/北交所(8xx) 通常小盘股多
+            if code.startswith('300') or code.startswith('301'):
+                return 'small_cap'  # 创业板偏向小盘成长
+            elif code.startswith('688') or code.startswith('689'):
+                return 'small_cap'  # 科创板偏向小盘科技
+            elif code.startswith('8'):
+                return 'small_cap'  # 北交所偏向小盘
+            # 沪深主板大市值
+            elif code.startswith('60') and not code.startswith('688'):
+                return 'mid_cap'    # 上海主板中等偏大
+            elif code.startswith('000'):
+                return 'mid_cap'    # 深圳主板中等
+        
+        # 通过日均成交额辅助判断
+        if avg_amount is not None:
+            if avg_amount < 5000:     # 日均成交额<5000万
+                return 'small_cap'
+            elif avg_amount > 50000:  # 日均成交额>5亿
+                return 'large_cap'
+        
+        return 'mid_cap'
+    
+    @staticmethod
+    def compute_adaptive_weights(market_cap: float = None, stock_code: str = None,
+                                  avg_amount: float = None,
+                                  volatility_regime: float = None) -> Dict[str, float]:
+        """
+        计算自适应权重（综合考虑市值和市场环境）
+        
+        Args:
+            market_cap: 总市值（亿元）
+            stock_code: 股票代码
+            avg_amount: 日均成交额（万元）
+            volatility_regime: 当前波动率水平（ATR百分比）
+        
+        Returns:
+            调整后的权重字典
+        """
+        engine_cls = ComprehensiveQuantEngine
+        cap_style = engine_cls.detect_cap_style(market_cap, stock_code, avg_amount)
+        weights = dict(engine_cls.CAP_STYLE_WEIGHTS[cap_style]['weights'])
+        
+        # 根据波动率微调：高波动时增加技术指标和情绪权重
+        if volatility_regime is not None:
+            if volatility_regime > 5:  # 高波动
+                weights['technical'] += 0.05
+                weights['sentiment'] += 0.05
+                weights['macro_cycle'] -= 0.05
+                weights['fundamental'] -= 0.05
+            elif volatility_regime < 1.5:  # 低波动
+                weights['fundamental'] += 0.05
+                weights['macro_cycle'] += 0.05
+                weights['technical'] -= 0.05
+                weights['sentiment'] -= 0.05
+        
+        # 确保权重非负且总和为1
+        for k in weights:
+            weights[k] = max(0.02, weights[k])
+        total = sum(weights.values())
+        weights = {k: v / total for k, v in weights.items()}
+        
+        return weights
     
     # ==================== 技术指标维度 ====================
     

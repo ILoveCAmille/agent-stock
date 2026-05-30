@@ -83,7 +83,52 @@ class ComprehensiveStrategy:
                 'macro_cycle': 0.20,
                 'fundamental': 0.20,
             }
-        }
+        },
+        # 市值风格策略
+        'small_cap_momentum': {
+            'name': '小市值动量策略',
+            'description': '针对小市值/妖股：技术指标和情绪驱动，快进快出',
+            'buy_score_threshold': 55,
+            'sell_score_threshold': 43,
+            'tech_min': 45,
+            'fund_min': 42,
+            'sent_min': 40,
+            'atr_stop_mult': 3.0,
+            'trailing_stop': True,
+            'trailing_atr_mult': 2.5,
+            'max_holding_days': 8,
+            'take_profit_pct': 20.0,
+            'stop_loss_pct': 10.0,
+            'weights': {
+                'technical': 0.40,
+                'fund_flow': 0.20,
+                'sentiment': 0.25,
+                'macro_cycle': 0.05,
+                'fundamental': 0.10,
+            }
+        },
+        'large_cap_value': {
+            'name': '大市值价值策略',
+            'description': '针对大市值/蓝筹：基本面和宏观驱动，中长线持有',
+            'buy_score_threshold': 58,
+            'sell_score_threshold': 38,
+            'tech_min': 48,
+            'fund_min': 48,
+            'sent_min': 38,
+            'atr_stop_mult': 1.5,
+            'trailing_stop': True,
+            'trailing_atr_mult': 1.2,
+            'max_holding_days': 30,
+            'take_profit_pct': 10.0,
+            'stop_loss_pct': 5.0,
+            'weights': {
+                'technical': 0.15,
+                'fund_flow': 0.20,
+                'sentiment': 0.05,
+                'macro_cycle': 0.25,
+                'fundamental': 0.35,
+            }
+        },
     }
     
     def __init__(self, preset: str = 'balanced', custom_params: Dict = None):
