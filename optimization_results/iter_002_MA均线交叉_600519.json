@@ -1,0 +1,90 @@
+{
+  "iteration_id": 2,
+  "timestamp": "2026-05-29 00:32:23",
+  "symbol": "600519",
+  "strategy": "MA均线交叉",
+  "metric": "sharpe_ratio",
+  "best_params": {
+    "fast_period": 3,
+    "slow_period": 20,
+    "atr_stop_mult": 1.5,
+    "holding_days": 5,
+    "holding_count": 0
+  },
+  "best_score": 1.731,
+  "stats": {
+    "initial_capital": 1000000,
+    "final_value": 1481263.83,
+    "total_return_pct": 48.13,
+    "annualized_return_pct": 31.16,
+    "max_drawdown_pct": 10.4,
+    "sharpe_ratio": 1.731,
+    "calmar_ratio": 2.997,
+    "total_trades": 8,
+    "win_trades": 6,
+    "lose_trades": 2,
+    "win_rate_pct": 75.0,
+    "avg_profit": 103835.27,
+    "avg_loss": -62810.62,
+    "max_profit": 203136.13,
+    "max_loss": -78432.7,
+    "profit_loss_ratio": 1.65,
+    "avg_holding_days": 4.0,
+    "max_consecutive_wins": 4,
+    "max_consecutive_losses": 2
+  },
+  "data_period": "2025-01-06 ~ 2026-05-29",
+  "trades_count": 0,
+  "top5_params": [
+    {
+      "params": {
+        "fast_period": 3,
+        "slow_period": 20,
+        "atr_stop_mult": 1.5,
+        "holding_days": 5,
+        "holding_count": 0
+      },
+      "score": 1.731
+    },
+    {
+      "params": {
+        "fast_period": 3,
+        "slow_period": 20,
+        "atr_stop_mult": 2.0,
+        "holding_days": 5,
+        "holding_count": 0
+      },
+      "score": 1.731
+    },
+    {
+      "params": {
+        "fast_period": 3,
+        "slow_period": 20,
+        "atr_stop_mult": 2.5,
+        "holding_days": 5,
+        "holding_count": 0
+      },
+      "score": 1.731
+    },
+    {
+      "params": {
+        "fast_period": 3,
+        "slow_period": 20,
+        "atr_stop_mult": 3.0,
+        "holding_days": 5,
+        "holding_count": 0
+      },
+      "score": 1.731
+    },
+    {
+      "params": {
+        "fast_period": 8,
+        "slow_period": 20,
+        "atr_stop_mult": 1.5,
+        "holding_days": 5,
+        "holding_count": 0
+      },
+      "score": 1.572
+    }
+  ]
+}
