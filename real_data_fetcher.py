@@ -31,7 +31,11 @@ class RealDataFetcher:
     
     def fetch_kline(self, symbol: str, period_days: int = 500) -> pd.DataFrame:
         """
-        从东方财富获取历史K线数据
+        获取历史K线数据（多源自动切换）
+        
+        优先级：
+        1. 新浪K线接口（稳定，返回JSON，单次最多1023条）
+        2. 东方财富HTTP接口（备选）
         
         Args:
             symbol: 6位股票代码
@@ -40,7 +44,67 @@ class RealDataFetcher:
         Returns:
             标准化的OHLCV DataFrame
         """
-        # 确定市场代码
+        # 方案1: 新浪K线接口（已验证稳定可用）
+        df = self._fetch_kline_sina(symbol, period_days)
+        if df is not None:
+            return df
+        
+        # 方案2: 东方财富HTTP接口（备选）
+        df = self._fetch_kline_eastmoney(symbol, period_days)
+        if df is not None:
+            return df
+        
+        logger.error(f"❌ {symbol} 所有K线接口均失败")
+        return None
+    
+    def _fetch_kline_sina(self, symbol: str, period_days: int = 500) -> pd.DataFrame:
+        """从新浪财经获取历史K线（JSON接口，稳定可靠）"""
+        market = 'sh' if symbol.startswith(('6', '5')) else 'sz'
+        datalen = min(period_days, 1023)  # 新浪接口最多1023条
+        
+        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"
+        params = {
+            "symbol": f"{market}{symbol}",
+            "scale": "240",     # 日K线 (5/15/30/60/240分钟)
+            "ma": "no",         # 不返回均线
+            "datalen": str(datalen)
+        }
+        
+        try:
+            r = requests.get(url, params=params, 
+                           headers={"Referer": "http://finance.sina.com.cn"},
+                           timeout=15)
+            if r.status_code != 200:
+                raise ValueError(f"HTTP {r.status_code}")
+            
+            data = r.json()
+            if not data or len(data) == 0:
+                raise ValueError("返回空数据")
+            
+            rows = []
+            for item in data:
+                rows.append({
+                    'Date': item['day'],
+                    'Open': float(item['open']),
+                    'Close': float(item['close']),
+                    'High': float(item['high']),
+                    'Low': float(item['low']),
+                    'Volume': float(item['volume']),
+                })
+            
+            df = pd.DataFrame(rows)
+            df['Date'] = pd.to_datetime(df['Date'])
+            df.set_index('Date', inplace=True)
+            
+            logger.info(f"✅ [新浪] {symbol} 获取 {len(df)} 条K线 ({df.index[0].strftime('%Y-%m-%d')} ~ {df.index[-1].strftime('%Y-%m-%d')})")
+            return df
+            
+        except Exception as e:
+            logger.warning(f"❌ [新浪] {symbol} K线获取失败: {e}")
+            return None
+    
+    def _fetch_kline_eastmoney(self, symbol: str, period_days: int = 500) -> pd.DataFrame:
+        """从东方财富获取历史K线（备选）"""
         market = self._get_market_code(symbol)
         secid = f"{market}.{symbol}"
         
@@ -52,8 +116,8 @@ class RealDataFetcher:
             "fields1": "f1,f2,f3,f4,f5,f6",
             "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f116",
             "ut": "7eea3edcaed734bea9cbfc24409ed989",
-            "klt": "101",  # 日K
-            "fqt": "1",    # 前复权
+            "klt": "101",
+            "fqt": "1",
             "secid": secid,
             "beg": start_date,
             "end": end_date
@@ -70,7 +134,6 @@ class RealDataFetcher:
             if not klines:
                 raise ValueError("返回空数据")
             
-            # 解析K线数据: 日期,开盘,收盘,最高,最低,成交量,成交额,...
             rows = []
             for line in klines:
                 parts = line.split(',')
@@ -89,11 +152,11 @@ class RealDataFetcher:
             df['Date'] = pd.to_datetime(df['Date'])
             df.set_index('Date', inplace=True)
             
-            logger.info(f"✅ {symbol} 获取 {len(df)} 条K线 ({df.index[0].strftime('%Y-%m-%d')} ~ {df.index[-1].strftime('%Y-%m-%d')})")
+            logger.info(f"✅ [东方财富] {symbol} 获取 {len(df)} 条K线")
             return df
             
         except Exception as e:
-            logger.error(f"❌ {symbol} K线获取失败: {e}")
+            logger.warning(f"❌ [东方财富] {symbol} K线获取失败: {e}")
             return None
     
     def fetch_realtime(self, symbol: str) -> dict:
