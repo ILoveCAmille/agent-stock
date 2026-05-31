@@ -20,18 +20,21 @@ class ComprehensiveStrategy:
     PRESETS = {
         'aggressive': {
             'name': '激进型策略',
-            'description': '追求高收益，容忍较高回撤',
-            'buy_score_threshold': 55,
-            'sell_score_threshold': 42,
+            'description': '追求高收益，容忍较高回撤。使用相对阈值（均值+0.5σ买入，均值-1σ卖出）',
+            'buy_score_threshold': 52,      # 均值+0.5σ ≈ 51.4, 取52
+            'sell_score_threshold': 47,     # 均值-1σ ≈ 47.1, 取47
             'tech_min': 48,
-            'fund_min': 45,
-            'sent_min': 42,
+            'fund_min': 48,
+            'sent_min': 47,
             'atr_stop_mult': 2.5,
             'trailing_stop': True,
             'trailing_atr_mult': 2.0,
             'max_holding_days': 20,
-            'take_profit_pct': 15.0,
+            'take_profit_pct': 12.0,
             'stop_loss_pct': 8.0,
+            'use_relative_threshold': True,   # 启用相对阈值
+            'buy_std_mult': 0.5,              # 买入=均值+0.5σ
+            'sell_std_mult': -1.0,            # 卖出=均值-1σ
             'weights': {
                 'technical': 0.35,
                 'fund_flow': 0.25,
@@ -43,17 +46,20 @@ class ComprehensiveStrategy:
         'balanced': {
             'name': '稳健型策略',
             'description': '收益与风险平衡',
-            'buy_score_threshold': 57,
-            'sell_score_threshold': 40,
+            'buy_score_threshold': 53,
+            'sell_score_threshold': 46,
             'tech_min': 50,
-            'fund_min': 47,
-            'sent_min': 44,
+            'fund_min': 49,
+            'sent_min': 48,
             'atr_stop_mult': 2.0,
             'trailing_stop': True,
             'trailing_atr_mult': 1.5,
             'max_holding_days': 15,
-            'take_profit_pct': 12.0,
+            'take_profit_pct': 10.0,
             'stop_loss_pct': 6.0,
+            'use_relative_threshold': True,
+            'buy_std_mult': 0.75,
+            'sell_std_mult': -0.75,
             'weights': {
                 'technical': 0.30,
                 'fund_flow': 0.25,
@@ -65,17 +71,20 @@ class ComprehensiveStrategy:
         'conservative': {
             'name': '保守型策略',
             'description': '优先控制风险，追求稳健收益',
-            'buy_score_threshold': 60,
-            'sell_score_threshold': 38,
-            'tech_min': 53,
-            'fund_min': 50,
-            'sent_min': 46,
+            'buy_score_threshold': 54,
+            'sell_score_threshold': 45,
+            'tech_min': 52,
+            'fund_min': 51,
+            'sent_min': 50,
             'atr_stop_mult': 1.5,
             'trailing_stop': True,
             'trailing_atr_mult': 1.2,
             'max_holding_days': 10,
             'take_profit_pct': 8.0,
             'stop_loss_pct': 5.0,
+            'use_relative_threshold': True,
+            'buy_std_mult': 1.0,
+            'sell_std_mult': -0.5,
             'weights': {
                 'technical': 0.25,
                 'fund_flow': 0.20,
@@ -88,17 +97,20 @@ class ComprehensiveStrategy:
         'small_cap_momentum': {
             'name': '小市值动量策略',
             'description': '针对小市值/妖股：技术指标和情绪驱动，快进快出',
-            'buy_score_threshold': 55,
-            'sell_score_threshold': 43,
-            'tech_min': 45,
-            'fund_min': 42,
-            'sent_min': 40,
+            'buy_score_threshold': 52,
+            'sell_score_threshold': 47,
+            'tech_min': 47,
+            'fund_min': 47,
+            'sent_min': 47,
             'atr_stop_mult': 3.0,
             'trailing_stop': True,
             'trailing_atr_mult': 2.5,
             'max_holding_days': 8,
-            'take_profit_pct': 20.0,
+            'take_profit_pct': 15.0,
             'stop_loss_pct': 10.0,
+            'use_relative_threshold': True,
+            'buy_std_mult': 0.3,
+            'sell_std_mult': -1.0,
             'weights': {
                 'technical': 0.40,
                 'fund_flow': 0.20,
@@ -110,17 +122,20 @@ class ComprehensiveStrategy:
         'large_cap_value': {
             'name': '大市值价值策略',
             'description': '针对大市值/蓝筹：基本面和宏观驱动，中长线持有',
-            'buy_score_threshold': 58,
-            'sell_score_threshold': 38,
-            'tech_min': 48,
-            'fund_min': 48,
-            'sent_min': 38,
+            'buy_score_threshold': 53,
+            'sell_score_threshold': 46,
+            'tech_min': 49,
+            'fund_min': 49,
+            'sent_min': 46,
             'atr_stop_mult': 1.5,
             'trailing_stop': True,
             'trailing_atr_mult': 1.2,
             'max_holding_days': 30,
             'take_profit_pct': 10.0,
             'stop_loss_pct': 5.0,
+            'use_relative_threshold': True,
+            'buy_std_mult': 0.8,
+            'sell_std_mult': -0.6,
             'weights': {
                 'technical': 0.15,
                 'fund_flow': 0.20,
@@ -212,15 +227,28 @@ class ComprehensiveStrategy:
             if close > params['max_price']:
                 params['max_price'] = close
         
+        # 计算动态阈值（基于滚动均值和标准差）
+        use_relative = params.get('use_relative_threshold', False)
+        if use_relative and i >= 200:
+            window = 60  # 使用60天滚动窗口
+            score_series = df['Score_Comprehensive'].iloc[max(0, i-window):i+1].dropna()
+            if len(score_series) > 10:
+                roll_mean = score_series.mean()
+                roll_std = score_series.std()
+                buy_std_mult = params.get('buy_std_mult', 0.5)
+                sell_std_mult = params.get('sell_std_mult', -1.0)
+                dynamic_buy = roll_mean + buy_std_mult * roll_std
+                dynamic_sell = roll_mean + sell_std_mult * roll_std
+            else:
+                dynamic_buy = buy_threshold
+                dynamic_sell = sell_threshold
+        else:
+            dynamic_buy = buy_threshold
+            dynamic_sell = sell_threshold
+        
         if position == 0:
             # ========== 买入条件 ==========
-            # 条件1: 综合评分超过买入阈值
-            # 条件2: 技术指标评分不低于最低要求
-            # 条件3: 资金流向评分不低于最低要求
-            # 条件4: 散户情绪评分不低于最低要求
-            # 条件5: MACD金叉或RSI从超卖区回升（技术确认）
-            
-            score_ok = comp_score > buy_threshold
+            score_ok = comp_score > dynamic_buy
             tech_ok = tech_score > tech_min
             fund_ok = fund_score > fund_min
             sent_ok = sent_score > sent_min
@@ -286,8 +314,8 @@ class ComprehensiveStrategy:
                 params['holding_counter'] = 0
                 return -1
             
-            # 条件5: 综合评分恶化
-            if comp_score < sell_threshold:
+            # 条件5: 综合评分恶化（使用动态阈值）
+            if comp_score < dynamic_sell:
                 params['holding_counter'] = 0
                 return -1
             
@@ -341,6 +369,9 @@ class MultiStrategyComparator:
                 'max_holding_days': config['max_holding_days'],
                 'take_profit_pct': config['take_profit_pct'],
                 'stop_loss_pct': config['stop_loss_pct'],
+                'use_relative_threshold': config.get('use_relative_threshold', False),
+                'buy_std_mult': config.get('buy_std_mult', 0.5),
+                'sell_std_mult': config.get('sell_std_mult', -1.0),
             }
             self.add_strategy(
                 config['name'],

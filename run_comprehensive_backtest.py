@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def fetch_stock_data(symbol: str, period_days: int = 750) -> pd.DataFrame:
     """
-    获取股票历史数据
+    获取股票历史数据（使用新浪K线API + 东方财富备用）
     
     Args:
         symbol: 股票代码
@@ -42,44 +42,19 @@ def fetch_stock_data(symbol: str, period_days: int = 750) -> pd.DataFrame:
     Returns:
         标准化的OHLCV DataFrame
     """
-    import akshare as ak
+    from real_data_fetcher import RealDataFetcher
     
-    # 清除代理设置
-    for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
-        os.environ.pop(key, None)
+    logger.info(f"正在获取 {symbol} 的历史数据...")
     
-    end_date = datetime.now().strftime('%Y%m%d')
-    start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y%m%d')
+    fetcher = RealDataFetcher()
+    df = fetcher.fetch_kline(symbol, period_days)
     
-    logger.info(f"正在获取 {symbol} 的历史数据 ({start_date} ~ {end_date})...")
-    
-    try:
-        df = ak.stock_zh_a_hist(
-            symbol=symbol, period="daily",
-            start_date=start_date, end_date=end_date, adjust="qfq"
-        )
-        
-        if df is None or df.empty:
-            raise ValueError(f"无法获取 {symbol} 的数据")
-        
-        # 标准化列名
-        df = df.rename(columns={
-            '日期': 'Date', '开盘': 'Open', '收盘': 'Close',
-            '最高': 'High', '最低': 'Low', '成交量': 'Volume',
-            '成交额': 'Amount', '涨跌幅': 'Change'
-        })
-        
-        df['Date'] = pd.to_datetime(df['Date'])
-        df.set_index('Date', inplace=True)
-        
-        logger.info(f"✅ 成功获取 {len(df)} 条数据 ({df.index[0].strftime('%Y-%m-%d')} ~ {df.index[-1].strftime('%Y-%m-%d')})")
-        
+    if df is not None and len(df) > 60:
+        logger.info(f"✅ 成功获取 {len(df)} 条真实数据 ({df.index[0].strftime('%Y-%m-%d')} ~ {df.index[-1].strftime('%Y-%m-%d')})")
         return df
-        
-    except Exception as e:
-        logger.warning(f"在线数据获取失败: {e}")
-        logger.info(f"切换到离线模式，为 {symbol} 生成模拟数据...")
-        return _generate_simulated_data(symbol, period_days)
+    
+    logger.warning("真实数据获取失败，切换到模拟数据...")
+    return _generate_simulated_data(symbol, period_days)
 
 
 def _generate_simulated_data(symbol: str, period_days: int = 750) -> pd.DataFrame:
@@ -357,6 +332,7 @@ def main():
     parser.add_argument('--period', type=int, default=750, help='回测数据天数（默认: 750）')
     parser.add_argument('--compare', action='store_true', help='对比所有策略')
     parser.add_argument('--no-market', action='store_true', help='不获取大盘数据')
+    parser.add_argument('--simulated', action='store_true', help='强制使用模拟数据（不联网）')
     parser.add_argument('--output', type=str, default='backtest_results', help='结果输出目录')
     
     args = parser.parse_args()
@@ -380,7 +356,11 @@ def main():
     
     # 1. 获取数据
     print("\n📥 步骤1: 获取历史数据...")
-    df = fetch_stock_data(args.stock, args.period)
+    if args.simulated:
+        logger.info("使用模拟数据模式")
+        df = _generate_simulated_data(args.stock, args.period)
+    else:
+        df = fetch_stock_data(args.stock, args.period)
     
     if df is None or len(df) < 120:
         logger.error("❌ 数据不足，无法进行回测（需要至少120条数据）")
