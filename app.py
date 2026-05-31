@@ -2205,7 +2205,7 @@ def display_config_manager():
 
         # AI模型名称
         model_name_info = config_info["DEFAULT_MODEL_NAME"]
-        current_model_name = st.session_state.temp_config.get("DEFAULT_MODEL_NAME", "deepseek-chat")
+        current_model_name = st.session_state.temp_config.get("DEFAULT_MODEL_NAME", "mimo-v2.5-pro")
 
         new_model_name = st.text_input(
             f"🤖 {model_name_info['description']}",
@@ -2218,11 +2218,12 @@ def display_config_manager():
         if new_model_name:
             st.success(f"✅ 当前模型: **{new_model_name}**")
         else:
-            st.warning("⚠️ 未设置模型名称，将使用默认值 deepseek-chat")
+            st.warning("⚠️ 未设置模型名称，将使用默认值 mimo-v2.5-pro")
 
         st.markdown("""
         **常用模型名称参考：**
-        - `deepseek-chat` — DeepSeek Chat（默认）
+        - `mimo-v2.5-pro` — MiMo V2.5 Pro（默认）
+        - `deepseek-chat` — DeepSeek Chat
         - `deepseek-reasoner` — DeepSeek Reasoner（推理增强）
         - `qwen-plus` — 通义千问 Plus
         - `qwen-turbo` — 通义千问 Turbo

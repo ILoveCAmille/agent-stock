@@ -10,3 +10,25 @@
 /.cursor
 /openspec
 TradEnv/
+
+# 数据库文件
+*.db
+
+# 缓存和临时文件
+.cache/
+.paper_trading/
+
+# 测试结果和生成文件
+api_test_results.json
+backtest_results/
+optimization_results/
+risk_data_debug_output.txt
+
+# Python 虚拟环境
+aistock_venv/
+
+# IDE
+.idea/
+.vscode/
+*.pyc
+*.pyo

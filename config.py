@@ -9,7 +9,7 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 
 # 默认AI模型名称（支持任何OpenAI兼容的模型）
-DEFAULT_MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "deepseek-chat")
+DEFAULT_MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "mimo-v2.5-pro")
 
 # 其他配置
 TUSHARE_TOKEN = os.getenv("TUSHARE_TOKEN", "")

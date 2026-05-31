@@ -27,7 +27,7 @@ class ConfigManager:
                 "type": "text"
             },
             "DEFAULT_MODEL_NAME": {
-                "value": "deepseek-chat",
+                "value": "mimo-v2.5-pro",
                 "description": "AI模型名称（支持OpenAI兼容模型）",
                 "required": False,
                 "type": "text"
@@ -178,6 +178,7 @@ class ConfigManager:
             lines.append("# ========== DeepSeek API配置 ==========")
             lines.append(f'DEEPSEEK_API_KEY="{config.get("DEEPSEEK_API_KEY", "")}"')
             lines.append(f'DEEPSEEK_BASE_URL="{config.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")}"')
+            lines.append(f'DEFAULT_MODEL_NAME="{config.get("DEFAULT_MODEL_NAME", "mimo-v2.5-pro")}"')
             lines.append("")
             
             # Tushare配置

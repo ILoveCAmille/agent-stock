@@ -7,6 +7,7 @@ import config
 
 # 预置模型列表（用户可以在UI中选择）
 _preset_models = {
+    "mimo-v2.5-pro": "MiMo V2.5 Pro (小米)",
     "deepseek-chat": "DeepSeek Chat",
     "deepseek-reasoner": "DeepSeek Reasoner (推理增强)",
     "qwen-plus": "qwen-plus (阿里百炼)",
