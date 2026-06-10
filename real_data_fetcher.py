@@ -83,15 +83,25 @@ class RealDataFetcher:
             self.stats["cache_hits"] += 1
             return cached
         
-        # 方案1: 新浪K线API（最稳定）
-        df = self._fetch_kline_sina(symbol, period_days, period)
+        # 方案1: 新浪K线API（最稳定）- 带重试
+        for attempt in range(2):
+            df = self._fetch_kline_sina(symbol, period_days, period)
+            if df is not None:
+                self._save_cache(cache_key, df)
+                self.stats["success"] += 1
+                return df
+            if attempt == 0:
+                time.sleep(0.5)
+        
+        # 方案2: 东方财富HTTP（备选）
+        df = self._fetch_kline_eastmoney(symbol, period_days)
         if df is not None:
             self._save_cache(cache_key, df)
             self.stats["success"] += 1
             return df
         
-        # 方案2: 东方财富HTTP（备选）
-        df = self._fetch_kline_eastmoney(symbol, period_days)
+        # 方案3: 腾讯日线（最后备用）
+        df = self._fetch_kline_tencent(symbol, period_days)
         if df is not None:
             self._save_cache(cache_key, df)
             self.stats["success"] += 1
@@ -192,6 +202,56 @@ class RealDataFetcher:
             
         except Exception as e:
             logger.warning(f"❌ [东方财富K线] {symbol} 失败: {e}")
+            return None
+    
+    def _fetch_kline_tencent(self, symbol: str, period_days: int = 500) -> pd.DataFrame:
+        """腾讯日K线接口（最后备用源）"""
+        market = 'sh' if symbol.startswith(('6', '5')) else 'sz'
+        
+        self.stats["total_requests"] += 1
+        try:
+            # 腾讯周K线接口可获取日K数据
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y-%m-%d')
+            
+            url = f"http://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+            params = {
+                "param": f"{market}{symbol},day,{start_date},{end_date},{min(period_days, 640)},qfq",
+                "_var": "kline_dayqfq",
+                "r": "0.123"
+            }
+            r = requests.get(url, params=params, timeout=15)
+            if r.status_code != 200:
+                raise ValueError(f"HTTP {r.status_code}")
+            
+            data = r.json()
+            day_data = data.get('data', {}).get(f'{market}{symbol}', {})
+            # 腾讯返回的 key 可能是 'day' 或 'qfqday'
+            klines = day_data.get('qfqday', day_data.get('day', []))
+            if not klines:
+                raise ValueError("返回空数据")
+            
+            rows = []
+            for item in klines:
+                if len(item) >= 6:
+                    rows.append({
+                        'Date': item[0],
+                        'Open': float(item[1]),
+                        'Close': float(item[2]),
+                        'High': float(item[3]),
+                        'Low': float(item[4]),
+                        'Volume': float(item[5]),
+                    })
+            
+            df = pd.DataFrame(rows)
+            df['Date'] = pd.to_datetime(df['Date'])
+            df.set_index('Date', inplace=True)
+            
+            logger.info(f"✅ [腾讯日K] {symbol} 获取 {len(df)} 条K线")
+            return df
+            
+        except Exception as e:
+            logger.warning(f"❌ [腾讯K线] {symbol} 失败: {e}")
             return None
     
     # ==================== 实时行情（3个源） ====================

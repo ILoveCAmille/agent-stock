@@ -479,7 +479,18 @@ def format_number(value, unit='', suffix=''):
 
 
 def run_main_force_batch_analysis():
-    """执行主力选股TOP股票批量分析（遵循统一调用规范）"""
+    """执行主力选股TOP股票批量分析（使用公共批量分析模块）"""
+    from batch_analysis_common import render_batch_analysis_page
+    render_batch_analysis_page(
+        prefix='main_force',
+        title='主力选股TOP股票批量分析',
+        display_results_fn=display_main_force_batch_results,
+        back_label='返回主力选股'
+    )
+
+
+def _run_main_force_batch_analysis_legacy():
+    """[已废弃] 原始批量分析实现，保留供参考"""
     import time
     import re
 

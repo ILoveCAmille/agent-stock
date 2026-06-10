@@ -27,7 +27,7 @@ class ConfigManager:
                 "type": "text"
             },
             "DEFAULT_MODEL_NAME": {
-                "value": "mimo-v2.5-pro",
+                "value": "deepseek-v4-pro",
                 "description": "AI模型名称（支持OpenAI兼容模型）",
                 "required": False,
                 "type": "text"
@@ -149,11 +149,11 @@ class ConfigManager:
                         key = key.strip()
                         value = value.strip()
                         
-                        # 移除引号
+                        # 移除引号并再次strip
                         if value.startswith('"') and value.endswith('"'):
-                            value = value[1:-1]
+                            value = value[1:-1].strip()
                         elif value.startswith("'") and value.endswith("'"):
-                            value = value[1:-1]
+                            value = value[1:-1].strip()
                         
                         config[key] = value
         except Exception as e:
@@ -261,4 +261,3 @@ class ConfigManager:
 
 # 全局配置管理器实例
 config_manager = ConfigManager()
-

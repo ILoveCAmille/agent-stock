@@ -475,6 +475,43 @@ class QuantFactors:
         df['VWAP'] = QuantFactors.vwap(df['High'], df['Low'], df['Close'], df['Volume'])
         df['Trend_Strength'] = QuantFactors.trend_strength(df['Close'])
         
+        # 新增：布林带（均值回归）
+        bb = QuantFactors.bollinger_bands(df['Close'])
+        df['BB_Upper'] = bb['BB_Upper']
+        df['BB_Middle'] = bb['BB_Middle']
+        df['BB_Lower'] = bb['BB_Lower']
+        df['BB_Pct'] = bb['BB_Pct']
+        df['BB_Width'] = bb['BB_Width']
+        
+        # 新增：KDJ 随机指标
+        kdj = QuantFactors.kdj(df['High'], df['Low'], df['Close'])
+        df['KDJ_K'] = kdj['K']
+        df['KDJ_D'] = kdj['D']
+        df['KDJ_J'] = kdj['J']
+        
+        # 新增：CCI 顺势指标
+        df['CCI'] = QuantFactors.cci(df['High'], df['Low'], df['Close'])
+        
+        # 新增：MFI 资金流量指标
+        df['MFI'] = QuantFactors.money_flow_index(df['High'], df['Low'], df['Close'], df['Volume'])
+        
+        # 新增：BIAS 乖离率
+        bias = QuantFactors.bias(df['Close'])
+        df['BIAS_6'] = bias['BIAS_6']
+        df['BIAS_12'] = bias['BIAS_12']
+        df['BIAS_24'] = bias['BIAS_24']
+        
+        # 新增：TRIX 趋势指标
+        trix = QuantFactors.trix(df['Close'])
+        df['TRIX'] = trix['TRIX']
+        df['TRIX_Signal'] = trix['TRIX_Signal']
+        
+        # 新增：ROC 变动率
+        df['ROC'] = QuantFactors.roc(df['Close'])
+        
+        # 新增：PSY 心理线
+        df['PSY'] = QuantFactors.psychology_line(df['Close'])
+        
         # 均线
         df['MA5'] = df['Close'].rolling(5).mean()
         df['MA10'] = df['Close'].rolling(10).mean()
@@ -538,6 +575,208 @@ class QuantFactors:
         )
         
         return df
+
+
+    # ==================== 补充主流因子 ====================
+
+    @staticmethod
+    def bollinger_bands(close: pd.Series, period: int = 20, std_dev: float = 2.0) -> pd.DataFrame:
+        """
+        布林带（Bollinger Bands）- 均值回归核心指标
+
+        Args:
+            close: 收盘价序列
+            period: 移动平均周期（默认20）
+            std_dev: 标准差倍数（默认2.0）
+
+        Returns:
+            DataFrame: BB_Upper, BB_Middle, BB_Lower, BB_Width, BB_Pct
+        """
+        bb = pd.DataFrame(index=close.index)
+        bb['BB_Middle'] = close.rolling(window=period).mean()
+        rolling_std = close.rolling(window=period).std()
+        bb['BB_Upper'] = bb['BB_Middle'] + std_dev * rolling_std
+        bb['BB_Lower'] = bb['BB_Middle'] - std_dev * rolling_std
+        bb['BB_Width'] = (bb['BB_Upper'] - bb['BB_Lower']) / bb['BB_Middle']  # 带宽
+        bb['BB_Pct'] = (close - bb['BB_Lower']) / (bb['BB_Upper'] - bb['BB_Lower'])  # %B
+        return bb
+
+    @staticmethod
+    def kdj(high: pd.Series, low: pd.Series, close: pd.Series,
+            n: int = 9, m1: int = 3, m2: int = 3) -> pd.DataFrame:
+        """
+        KDJ 随机指标 - 超买超卖判断
+
+        Args:
+            high, low, close: 价格序列
+            n: RSV 周期（默认9）
+            m1: K 平滑周期（默认3）
+            m2: D 平滑周期（默认3）
+
+        Returns:
+            DataFrame: K, D, J
+        """
+        kdj = pd.DataFrame(index=close.index)
+        lowest_low = low.rolling(window=n, min_periods=1).min()
+        highest_high = high.rolling(window=n, min_periods=1).max()
+        rsv = (close - lowest_low) / (highest_high - lowest_low) * 100
+        rsv = rsv.fillna(50)
+
+        k = pd.Series(index=close.index, dtype=float)
+        d = pd.Series(index=close.index, dtype=float)
+        k.iloc[0] = 50
+        d.iloc[0] = 50
+        for i in range(1, len(close)):
+            k.iloc[i] = (2 / m1) * rsv.iloc[i] + (1 - 2 / m1) * k.iloc[i - 1]
+            d.iloc[i] = (2 / m2) * k.iloc[i] + (1 - 2 / m2) * d.iloc[i - 1]
+
+        kdj['K'] = k
+        kdj['D'] = d
+        kdj['J'] = 3 * k - 2 * d
+        return kdj
+
+    @staticmethod
+    def cci(high: pd.Series, low: pd.Series, close: pd.Series,
+            period: int = 14) -> pd.Series:
+        """
+        CCI 顺势指标 - 判断趋势强度和超买超卖
+
+        Args:
+            high, low, close: 价格序列
+            period: 计算周期（默认14）
+
+        Returns:
+            CCI 序列
+        """
+        tp = (high + low + close) / 3
+        sma = tp.rolling(window=period).mean()
+        mad = tp.rolling(window=period).apply(lambda x: np.mean(np.abs(x - np.mean(x))), raw=True)
+        cci = (tp - sma) / (0.015 * mad)
+        return cci
+
+    @staticmethod
+    def momentum(close: pd.Series, period: int = 10) -> pd.Series:
+        """
+        动量因子 - 衡量价格变化速度
+
+        Args:
+            close: 收盘价序列
+            period: 动量周期（默认10）
+
+        Returns:
+            动量值序列
+        """
+        return close - close.shift(period)
+
+    @staticmethod
+    def roc(close: pd.Series, period: int = 12) -> pd.Series:
+        """
+        ROC 变动率 - 价格变化百分比
+
+        Args:
+            close: 收盘价序列
+            period: 计算周期（默认12）
+
+        Returns:
+            ROC 序列（百分比）
+        """
+        prev = close.shift(period)
+        return (close - prev) / prev * 100
+
+    @staticmethod
+    def bias(close: pd.Series, periods: List[int] = None) -> pd.DataFrame:
+        """
+        BIAS 乖离率 - 价格偏离均线程度（均值回归信号）
+
+        Args:
+            close: 收盘价序列
+            periods: 均线周期列表（默认[6, 12, 24]）
+
+        Returns:
+            DataFrame: BIAS_6, BIAS_12, BIAS_24
+        """
+        if periods is None:
+            periods = [6, 12, 24]
+        bias_df = pd.DataFrame(index=close.index)
+        for p in periods:
+            ma = close.rolling(window=p).mean()
+            bias_df[f'BIAS_{p}'] = (close - ma) / ma * 100
+        return bias_df
+
+    @staticmethod
+    def trix(close: pd.Series, period: int = 12, signal: int = 9) -> pd.DataFrame:
+        """
+        TRIX 三重指数平滑移动平均 - 趋势跟踪指标
+
+        Args:
+            close: 收盘价序列
+            period: EMA 周期（默认12）
+            signal: 信号线周期（默认9）
+
+        Returns:
+            DataFrame: TRIX, TRIX_Signal
+        """
+        trix_df = pd.DataFrame(index=close.index)
+        ema1 = close.ewm(span=period, adjust=False).mean()
+        ema2 = ema1.ewm(span=period, adjust=False).mean()
+        ema3 = ema2.ewm(span=period, adjust=False).mean()
+        trix_df['TRIX'] = (ema3 - ema3.shift(1)) / ema3.shift(1) * 100
+        trix_df['TRIX_Signal'] = trix_df['TRIX'].rolling(window=signal).mean()
+        return trix_df
+
+    @staticmethod
+    def psychology_line(close: pd.Series, period: int = 12) -> pd.Series:
+        """
+        PSY 心理线 - 市场情绪指标
+
+        Args:
+            close: 收盘价序列
+            period: 计算周期（默认12）
+
+        Returns:
+            PSY 序列（百分比）
+        """
+        up = (close > close.shift(1)).astype(int)
+        psy = up.rolling(window=period).sum() / period * 100
+        return psy
+
+    @staticmethod
+    def volume_ratio(volume: pd.Series, period: int = 5) -> pd.Series:
+        """
+        量比 - 当日成交量与过去N日平均成交量的比值
+
+        Args:
+            volume: 成交量序列
+            period: 平均周期（默认5）
+
+        Returns:
+            量比序列
+        """
+        avg_vol = volume.rolling(window=period).mean()
+        return volume / avg_vol
+
+    @staticmethod
+    def money_flow_index(high: pd.Series, low: pd.Series, close: pd.Series,
+                         volume: pd.Series, period: int = 14) -> pd.Series:
+        """
+        MFI 资金流量指标 - 结合价格和成交量的RSI变体
+
+        Args:
+            high, low, close, volume: 价格和成交量序列
+            period: 计算周期（默认14）
+
+        Returns:
+            MFI 序列
+        """
+        tp = (high + low + close) / 3
+        mf = tp * volume
+        tp_diff = tp.diff()
+        pos_mf = pd.Series(np.where(tp_diff > 0, mf, 0), index=close.index)
+        neg_mf = pd.Series(np.where(tp_diff < 0, mf, 0), index=close.index)
+        pos_sum = pos_mf.rolling(window=period).sum()
+        neg_sum = neg_mf.rolling(window=period).sum()
+        mfi = 100 - (100 / (1 + pos_sum / neg_sum.replace(0, np.nan)))
+        return mfi
 
 
 # 全局实例

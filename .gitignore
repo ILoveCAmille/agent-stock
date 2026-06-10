@@ -32,3 +32,19 @@ aistock_venv/
 .vscode/
 *.pyc
 *.pyo
+
+# Test files
+test_*.py
+query_stock.py
+
+# Temporary files
+*.log
+*.json
+!package.json
+!tsconfig.json
+
+# Codegraph
+.codegraph/
+
+# Signal state
+.signal_state.json

@@ -1,55 +1,84 @@
 import openai
 import json
+import time
+import logging
 from typing import Dict, List, Any, Optional
 import config
 
+logger = logging.getLogger(__name__)
+
 class DeepSeekClient:
-    """DeepSeek API客户端"""
+    """DeepSeek/Mimo API客户端 - 增强版"""
     
-    def __init__(self, model=None):
+    def __init__(self, model=None, max_retries: int = None, timeout: int = None):
         self.model = model or config.DEFAULT_MODEL_NAME
+        self.max_retries = max_retries or config.API_MAX_RETRIES
+        self.timeout = timeout or config.API_TIMEOUT
         self.client = openai.OpenAI(
             api_key=config.DEEPSEEK_API_KEY,
-            base_url=config.DEEPSEEK_BASE_URL
+            base_url=config.DEEPSEEK_BASE_URL,
+            timeout=self.timeout
         )
         
     def call_api(self, messages: List[Dict[str, str]], model: Optional[str] = None, 
                  temperature: float = 0.7, max_tokens: int = 2000) -> str:
-        """调用DeepSeek API"""
-        # 使用实例的模型，如果没有传入则使用默认模型
+        """调用API - 带重试机制"""
         model_to_use = model or self.model
         
         # 对于 reasoner 模型，自动增加 max_tokens
         if "reasoner" in model_to_use.lower() and max_tokens <= 2000:
-            max_tokens = 8000  # reasoner 模型需要更多 tokens 来输出推理过程
+            max_tokens = 8000
         
-        try:
-            response = self.client.chat.completions.create(
-                model=model_to_use,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
-            
-            # 处理 reasoner 模型的响应
-            message = response.choices[0].message
-            
-            # reasoner 模型可能包含 reasoning_content（推理过程）和 content（最终答案）
-            # 我们返回完整内容，包括推理过程（如果有的话）
-            result = ""
-            
-            # 检查是否有推理内容
-            if hasattr(message, 'reasoning_content') and message.reasoning_content:
-                result += f"【推理过程】\n{message.reasoning_content}\n\n"
-            
-            # 添加最终内容
-            if message.content:
-                result += message.content
-            
-            return result if result else "API返回空响应"
-            
-        except Exception as e:
-            return f"API调用失败: {str(e)}"
+        # 重试机制
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=model_to_use,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+                
+                message = response.choices[0].message
+                result = ""
+                
+                # 检查是否有推理内容（reasoner模型）
+                if hasattr(message, 'reasoning_content') and message.reasoning_content:
+                    result += f"【推理过程】\n{message.reasoning_content}\n\n"
+                
+                # 添加最终内容
+                if message.content:
+                    result += message.content
+                
+                return result if result else "API返回空响应"
+                
+            except openai.APITimeoutError as e:
+                last_error = e
+                wait_time = 2 ** attempt  # 指数退避
+                logger.warning(f"API超时 (尝试 {attempt + 1}/{self.max_retries}): {e}, {wait_time}秒后重试...")
+                if attempt < self.max_retries - 1:
+                    time.sleep(wait_time)
+                    
+            except openai.RateLimitError as e:
+                last_error = e
+                wait_time = 5 * (attempt + 1)  # 限流时等待更久
+                logger.warning(f"API限流 (尝试 {attempt + 1}/{self.max_retries}): {e}, {wait_time}秒后重试...")
+                if attempt < self.max_retries - 1:
+                    time.sleep(wait_time)
+                    
+            except openai.APIError as e:
+                last_error = e
+                logger.error(f"API错误 (尝试 {attempt + 1}/{self.max_retries}): {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(2)
+                    
+            except Exception as e:
+                last_error = e
+                logger.error(f"未知错误 (尝试 {attempt + 1}/{self.max_retries}): {e}")
+                break  # 未知错误不重试
+        
+        return f"API调用失败(已重试{self.max_retries}次): {str(last_error)}"
     
     def technical_analysis(self, stock_info: Dict, stock_data: Any, indicators: Dict) -> str:
         """技术面分析"""

@@ -1,3 +1,10 @@
+import os
+import sys
+
+# Disable proxy for all requests
+for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']:
+    os.environ.pop(key, None)
+
 import yfinance as yf
 import akshare as ak
 import pandas as pd
@@ -8,9 +15,74 @@ import requests
 import json
 import pywencai
 from data_source_manager import data_source_manager
+from functools import lru_cache
+import hashlib
+import time
+import config
+
+# Import alternative data source
+try:
+    from alternative_data_source import alt_data_source
+    HAS_ALT_SOURCE = True
+except ImportError:
+    HAS_ALT_SOURCE = False
+
+# Force requests to not use proxy
+import urllib3
+urllib3.disable_warnings()
+
+# Patch requests session to bypass proxy
+original_get = requests.get
+original_post = requests.post
+
+def no_proxy_get(*args, **kwargs):
+    kwargs.setdefault('proxies', {'http': None, 'https': None})
+    return original_get(*args, **kwargs)
+
+def no_proxy_post(*args, **kwargs):
+    kwargs.setdefault('proxies', {'http': None, 'https': None})
+    return original_post(*args, **kwargs)
+
+requests.get = no_proxy_get
+requests.post = no_proxy_post
+
+class StockDataCache:
+    """股票数据缓存管理器"""
+    
+    def __init__(self, ttl_seconds: int = None):
+        self._cache = {}
+        self._ttl = ttl_seconds or config.CACHE_TTL
+    
+    def _make_key(self, func_name: str, *args, **kwargs) -> str:
+        """生成缓存键"""
+        key_data = f"{func_name}:{args}:{sorted(kwargs.items())}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+    
+    def get(self, func_name: str, *args, **kwargs):
+        """获取缓存数据"""
+        key = self._make_key(func_name, *args, **kwargs)
+        if key in self._cache:
+            data, timestamp = self._cache[key]
+            if time.time() - timestamp < self._ttl:
+                return data
+            else:
+                del self._cache[key]
+        return None
+    
+    def set(self, func_name: str, data, *args, **kwargs):
+        """设置缓存数据"""
+        key = self._make_key(func_name, *args, **kwargs)
+        self._cache[key] = (data, time.time())
+    
+    def clear(self):
+        """清空缓存"""
+        self._cache.clear()
 
 class StockDataFetcher:
     """股票数据获取类"""
+    
+    # 类级别缓存实例（所有实例共享）
+    _cache = StockDataCache()
     
     def __init__(self):
         self.data = None
@@ -19,29 +91,57 @@ class StockDataFetcher:
         self.data_source_manager = data_source_manager
         
     def get_stock_info(self, symbol):
-        """获取股票基本信息"""
+        """获取股票基本信息（带缓存）"""
+        # 检查缓存
+        cached = self._cache.get('get_stock_info', symbol)
+        if cached is not None:
+            print(f"[缓存] 命中 {symbol} 的基本信息缓存")
+            return cached
+        
         try:
             # 处理中国A股
             if self._is_chinese_stock(symbol):
-                return self._get_chinese_stock_info(symbol)
+                result = self._get_chinese_stock_info(symbol)
             # 处理港股
             elif self._is_hk_stock(symbol):
-                return self._get_hk_stock_info(symbol)
+                result = self._get_hk_stock_info(symbol)
             # 处理美股
             else:
-                return self._get_us_stock_info(symbol)
+                result = self._get_us_stock_info(symbol)
+            
+            # 缓存结果（检查是否为非错误字典）
+            if isinstance(result, dict) and not result.get('error'):
+                self._cache.set('get_stock_info', result, symbol)
+            return result
         except Exception as e:
             return {"error": f"获取股票信息失败: {str(e)}"}
     
     def get_stock_data(self, symbol, period="1y", interval="1d"):
-        """获取股票历史数据"""
+        """获取股票历史数据（带缓存）"""
+        # 检查缓存
+        cached = self._cache.get('get_stock_data', symbol, period, interval)
+        if cached is not None:
+            print(f"[缓存] 命中 {symbol} 的历史数据缓存")
+            return cached
+        
         try:
             if self._is_chinese_stock(symbol):
-                return self._get_chinese_stock_data(symbol, period)
+                result = self._get_chinese_stock_data(symbol, period)
             elif self._is_hk_stock(symbol):
-                return self._get_hk_stock_data(symbol, period)
+                result = self._get_hk_stock_data(symbol, period)
             else:
-                return self._get_us_stock_data(symbol, period, interval)
+                result = self._get_us_stock_data(symbol, period, interval)
+            
+            # 缓存结果（检查是否为有效的DataFrame或非错误字典）
+            should_cache = False
+            if isinstance(result, pd.DataFrame) and not result.empty:
+                should_cache = True
+            elif isinstance(result, dict) and not result.get('error'):
+                should_cache = True
+            
+            if should_cache:
+                self._cache.set('get_stock_data', result, symbol, period, interval)
+            return result
         except Exception as e:
             return {"error": f"获取股票数据失败: {str(e)}"}
     
@@ -137,9 +237,9 @@ class StockDataFetcher:
                             info['pe_ratio'] = row.get('pe', 'N/A')
                             info['pb_ratio'] = row.get('pb', 'N/A')
                             info['market_cap'] = row.get('total_mv', 'N/A')
-                            print(f"[Tushare] ✅ 成功获取部分信息")
+                            print(f"[Tushare] [OK] 成功获取部分信息")
                     except Exception as te:
-                        print(f"[Tushare] ❌ 获取失败: {te}")
+                        print(f"[Tushare] [FAIL] 获取失败: {te}")
             
             # 方法2: 尝试获取历史价格和涨跌幅（如果网络允许）
             # try:
@@ -197,7 +297,7 @@ class StockDataFetcher:
                             prev_close = hist_data.iloc[-2]['close']
                             change_pct = ((latest['close'] - prev_close) / prev_close) * 100
                             info['change_percent'] = round(change_pct, 2)
-                        print(f"[数据源管理器] ✅ 成功获取价格数据")
+                        print(f"[数据源管理器] [OK] 成功获取价格数据")
             except Exception as e2:
                 print(f"获取历史数据也失败: {e2}")
             
@@ -230,6 +330,28 @@ class StockDataFetcher:
             
         except Exception as e:
             print(f"获取中国股票信息完全失败: {e}")
+            
+            # 使用备用数据源（新浪）
+            if HAS_ALT_SOURCE:
+                try:
+                    print(f"[备用数据源] 尝试从新浪获取 {symbol} 数据...")
+                    alt_info = alt_data_source.get_stock_info_sina(symbol)
+                    if alt_info:
+                        print(f"[备用数据源] [OK] 成功获取数据")
+                        return {
+                            "symbol": symbol,
+                            "name": alt_info.get('name', f'股票{symbol}'),
+                            "current_price": alt_info.get('current_price', 'N/A'),
+                            "change_percent": alt_info.get('change_percent', 'N/A'),
+                            "pe_ratio": "N/A",
+                            "pb_ratio": "N/A",
+                            "market_cap": "N/A",
+                            "market": "中国A股",
+                            "exchange": "上海/深圳证券交易所"
+                        }
+                except Exception as alt_e:
+                    print(f"[备用数据源] [FAIL] {alt_e}")
+            
             # 返回基本信息，避免完全失败
             return {
                 "symbol": symbol,
@@ -460,12 +582,58 @@ class StockDataFetcher:
                     df['Date'] = pd.to_datetime(df['Date'])
                     df.set_index('Date', inplace=True)
                 
-                print(f"✅ 成功获取 {symbol} 的历史数据，共 {len(df)} 条记录")
+                print(f"[OK] 成功获取 {symbol} 的历史数据，共 {len(df)} 条记录")
                 return df
             else:
+                # 使用备用数据源
+                if HAS_ALT_SOURCE:
+                    try:
+                        print(f"[备用数据源] 尝试从新浪获取 {symbol} 历史数据...")
+                        days = 365 if period == "1y" else 180 if period == "6mo" else 90 if period == "3mo" else 30
+                        alt_df = alt_data_source.get_stock_history_sina(symbol, days=days)
+                        if alt_df is not None and not alt_df.empty:
+                            alt_df = alt_df.rename(columns={
+                                'date': 'Date',
+                                'open': 'Open',
+                                'close': 'Close',
+                                'high': 'High',
+                                'low': 'Low',
+                                'volume': 'Volume'
+                            })
+                            if 'Date' in alt_df.columns:
+                                alt_df['Date'] = pd.to_datetime(alt_df['Date'])
+                                alt_df.set_index('Date', inplace=True)
+                            print(f"[备用数据源] [OK] 成功获取 {len(alt_df)} 条记录")
+                            return alt_df
+                    except Exception as alt_e:
+                        print(f"[备用数据源] [FAIL] {alt_e}")
+                
                 return {"error": "所有数据源均无法获取历史数据"}
                 
         except Exception as e:
+            # 使用备用数据源
+            if HAS_ALT_SOURCE:
+                try:
+                    print(f"[备用数据源] 尝试从新浪获取 {symbol} 历史数据...")
+                    days = 365 if period == "1y" else 180 if period == "6mo" else 90 if period == "3mo" else 30
+                    alt_df = alt_data_source.get_stock_history_sina(symbol, days=days)
+                    if alt_df is not None and not alt_df.empty:
+                        alt_df = alt_df.rename(columns={
+                            'date': 'Date',
+                            'open': 'Open',
+                            'close': 'Close',
+                            'high': 'High',
+                            'low': 'Low',
+                            'volume': 'Volume'
+                        })
+                        if 'Date' in alt_df.columns:
+                            alt_df['Date'] = pd.to_datetime(alt_df['Date'])
+                            alt_df.set_index('Date', inplace=True)
+                        print(f"[备用数据源] [OK] 成功获取 {len(alt_df)} 条记录")
+                        return alt_df
+                except Exception as alt_e:
+                    print(f"[备用数据源] [FAIL] {alt_e}")
+            
             return {"error": f"获取中国股票数据失败: {str(e)}"}
     
     def _get_hk_stock_data(self, symbol, period="1y"):
@@ -738,16 +906,16 @@ class StockDataFetcher:
                         "每手股": self._safe_convert(indicator_dict.get('每手股', 'N/A')),
                     }
                     
-                    print(f"✅ 成功获取港股 {hk_code} 的财务指标")
+                    print(f"[OK] 成功获取港股 {hk_code} 的财务指标")
                     print(f"   ROE: {financial_data['financial_ratios']['ROE股东权益回报率']}")
                     print(f"   市盈率: {financial_data['financial_ratios']['市盈率']}")
                     print(f"   市净率: {financial_data['financial_ratios']['市净率']}")
                 else:
-                    print(f"⚠️ 未获取到港股 {hk_code} 的财务指标数据")
+                    print(f"[WARN] 未获取到港股 {hk_code} 的财务指标数据")
                     financial_data["note"] = "未获取到财务数据"
                     
             except Exception as e:
-                print(f"⚠️ 获取港股财务指标失败: {e}")
+                print(f"[WARN] 获取港股财务指标失败: {e}")
                 financial_data["note"] = f"获取财务数据失败: {str(e)}"
             
             return financial_data

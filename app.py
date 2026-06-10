@@ -22,6 +22,7 @@ from sector_strategy_ui import display_sector_strategy
 from longhubang_ui import display_longhubang
 from smart_monitor_ui import smart_monitor_ui
 from news_flow_ui import display_news_flow_monitor
+from market_strategy_ui import display_market_strategy
 
 # 页面配置
 st.set_page_config(
@@ -288,7 +289,7 @@ def main():
         if st.button("🏠 股票分析", width='stretch', key="nav_home", help="返回首页，进行单只股票的深度分析"):
             # 清除所有功能页面标志
             for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
-                       'show_sector_strategy', 'show_longhubang', 'show_portfolio', 'show_low_price_bull', 'show_news_flow', 'show_macro_cycle', 'show_macro_analysis', 'show_value_stock']:
+                       'show_sector_strategy', 'show_longhubang', 'show_portfolio', 'show_low_price_bull', 'show_news_flow', 'show_macro_cycle', 'show_macro_analysis', 'show_value_stock', 'show_market_strategy']:
                 if key in st.session_state:
                     del st.session_state[key]
 
@@ -337,38 +338,45 @@ def main():
         with st.expander("📊 策略分析", expanded=True):
             st.markdown("**AI驱动的板块和龙虎榜策略**")
 
+            if st.button("📈 市场策略", width='stretch', key="nav_market_strategy", help="市场指数分析与进攻/防守策略"):
+                st.session_state.show_market_strategy = True
+                for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
+                           'show_sector_strategy', 'show_longhubang', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_news_flow', 'show_macro_analysis']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+
             if st.button("🎯 智策板块", width='stretch', key="nav_sector_strategy", help="AI板块策略分析"):
                 st.session_state.show_sector_strategy = True
                 for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
-                           'show_longhubang', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_news_flow', 'show_macro_analysis']:
+                           'show_longhubang', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_news_flow', 'show_macro_analysis', 'show_market_strategy']:
                     if key in st.session_state:
                         del st.session_state[key]
 
             if st.button("🐉 智瞰龙虎", width='stretch', key="nav_longhubang", help="龙虎榜深度分析"):
                 st.session_state.show_longhubang = True
                 for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
-                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_news_flow', 'show_macro_analysis']:
+                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_news_flow', 'show_macro_analysis', 'show_market_strategy']:
                     if key in st.session_state:
                         del st.session_state[key]
             
             if st.button("📰 新闻流量", width='stretch', key="nav_news_flow", help="新闻流量监测与短线指导"):
                 st.session_state.show_news_flow = True
                 for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
-                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_longhubang', 'show_macro_cycle', 'show_macro_analysis']:
+                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_longhubang', 'show_macro_cycle', 'show_macro_analysis', 'show_market_strategy']:
                     if key in st.session_state:
                         del st.session_state[key]
 
             if st.button("🌏 宏观分析", width='stretch', key="nav_macro_analysis", help="国家统计局宏观数据 × A股行业映射 × 优质标的"):
                 st.session_state.show_macro_analysis = True
                 for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
-                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_longhubang', 'show_news_flow', 'show_macro_cycle']:
+                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_longhubang', 'show_news_flow', 'show_macro_cycle', 'show_market_strategy']:
                     if key in st.session_state:
                         del st.session_state[key]
 
             if st.button("🧭 宏观周期", width='stretch', key="nav_macro_cycle", help="康波周期 × 美林投资时钟 × 政策分析"):
                 st.session_state.show_macro_cycle = True
                 for key in ['show_history', 'show_monitor', 'show_config', 'show_main_force',
-                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_longhubang', 'show_news_flow', 'show_macro_analysis']:
+                           'show_sector_strategy', 'show_portfolio', 'show_smart_monitor', 'show_low_price_bull', 'show_longhubang', 'show_news_flow', 'show_macro_analysis', 'show_market_strategy']:
                     if key in st.session_state:
                         del st.session_state[key]
 
@@ -575,6 +583,11 @@ def main():
     if 'show_macro_cycle' in st.session_state and st.session_state.show_macro_cycle:
         from macro_cycle_ui import display_macro_cycle
         display_macro_cycle()
+        return
+
+    # 检查是否显示市场策略分析
+    if 'show_market_strategy' in st.session_state and st.session_state.show_market_strategy:
+        display_market_strategy()
         return
     
     # 检查是否显示环境配置
@@ -1324,11 +1337,78 @@ def run_stock_analysis(symbol, period):
 
         # 7. 运行多智能体分析（传入所有数据和分析师选择）
         status_text.text("🔍 AI分析师团队正在分析,请耐心等待几分钟...")
+        
+        # 创建分析师进度显示区域
+        analyst_progress_container = st.empty()
+        analyst_status = {}
+        
+        # 分析师名称映射
+        analyst_display_names = {
+            'technical': '技术分析师',
+            'fundamental': '基本面分析师',
+            'fund_flow': '资金面分析师',
+            'risk': '风险管理师',
+            'sentiment': '市场情绪分析师',
+            'news': '新闻分析师'
+        }
+        
+        # 分析师图标
+        analyst_icons = {
+            'technical': '📈',
+            'fundamental': '📊',
+            'fund_flow': '💰',
+            'risk': '⚠️',
+            'sentiment': '🎯',
+            'news': '📰'
+        }
+        
+        def update_analyst_progress(analyst_key, status, analyst_name=None):
+            """更新分析师进度"""
+            if status == 'running':
+                analyst_status[analyst_key] = 'running'
+            elif status == 'completed':
+                analyst_status[analyst_key] = 'completed'
+            elif status == 'error':
+                analyst_status[analyst_key] = 'error'
+            
+            # 构建进度显示
+            progress_html = "<div style='background: #f0f2f6; padding: 15px; border-radius: 10px; margin: 10px 0;'>"
+            progress_html += "<b>🤖 AI分析师团队进度</b><br><br>"
+            
+            for key in enabled_analysts:
+                if enabled_analysts[key]:
+                    icon = analyst_icons.get(key, '👤')
+                    name = analyst_display_names.get(key, key)
+                    status_icon = ''
+                    
+                    if key in analyst_status:
+                        if analyst_status[key] == 'running':
+                            status_icon = ' <span style="color: orange;">⏳ 分析中...</span>'
+                        elif analyst_status[key] == 'completed':
+                            status_icon = ' <span style="color: green;">✅ 完成</span>'
+                        elif analyst_status[key] == 'error':
+                            status_icon = ' <span style="color: red;">❌ 失败</span>'
+                    else:
+                        status_icon = ' <span style="color: gray;">⏸️ 等待中</span>'
+                    
+                    progress_html += f"{icon} {name}{status_icon}<br>"
+            
+            progress_html += "</div>"
+            analyst_progress_container.markdown(progress_html, unsafe_allow_html=True)
+        
+        # 初始化显示
+        update_analyst_progress(None, None)
+        
+        # 运行分析
         agents_results = agents.run_multi_agent_analysis(
             stock_info, stock_data, indicators, financial_data,
             fund_flow_data, sentiment_data, news_data, quarterly_data, risk_data,
-            enabled_analysts=enabled_analysts
+            enabled_analysts=enabled_analysts,
+            progress_callback=update_analyst_progress
         )
+        
+        # 最终状态更新
+        update_analyst_progress(None, 'final')
         progress_bar.progress(75)
 
         # 显示各分析师报告

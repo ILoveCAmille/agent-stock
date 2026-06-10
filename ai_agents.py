@@ -3,6 +3,24 @@ from typing import Dict, Any
 import time
 import config
 
+# Import skills
+try:
+    from skills import (
+        WebSearchSkill,
+        DataScrapingSkill,
+        FinancialReportSkill,
+        TechnicalAnalysisSkill,
+        FundamentalAnalysisSkill,
+        FundFlowSkill,
+        RiskAssessmentSkill,
+        MarketSentimentSkill,
+        NewsAnalysisSkill
+    )
+    HAS_SKILLS = True
+except ImportError:
+    HAS_SKILLS = False
+    print("[WARN] Skills module not found, using basic analysis")
+
 class StockAnalysisAgents:
     """股票分析AI智能体集合"""
     
@@ -10,10 +28,33 @@ class StockAnalysisAgents:
         self.model = model or config.DEFAULT_MODEL_NAME
         self.deepseek_client = DeepSeekClient(model=self.model)
         
+        # Initialize skills
+        if HAS_SKILLS:
+            self.web_search = WebSearchSkill()
+            self.data_scraping = DataScrapingSkill()
+            self.financial_report = FinancialReportSkill()
+            self.technical_skill = TechnicalAnalysisSkill()
+            self.fundamental_skill = FundamentalAnalysisSkill()
+            self.fund_flow_skill = FundFlowSkill()
+            self.risk_skill = RiskAssessmentSkill()
+            self.sentiment_skill = MarketSentimentSkill()
+            self.news_skill = NewsAnalysisSkill()
+        
     def technical_analyst_agent(self, stock_info: Dict, stock_data: Any, indicators: Dict) -> Dict[str, Any]:
-        """技术面分析智能体"""
-        print("🔍 技术分析师正在分析中...")
-        time.sleep(1)  # 模拟分析时间
+        """技术面分析智能体（增强版）"""
+        print("[SEARCH] 技术分析师正在分析中...")
+        
+        # 使用技能增强分析
+        skill_data = {}
+        if HAS_SKILLS:
+            try:
+                # 计算技术指标
+                if stock_data is not None:
+                    skill_data['patterns'] = self.technical_skill.identify_patterns(stock_data)
+                    skill_data['signals'] = self.technical_skill.generate_signals(indicators)
+                    print(f"   [OK] 识别到 {len(skill_data.get('patterns', []))} 个图表形态")
+            except Exception as e:
+                print(f"   [WARN] 技能增强失败: {e}")
         
         analysis = self.deepseek_client.technical_analysis(stock_info, stock_data, indicators)
         
@@ -22,23 +63,48 @@ class StockAnalysisAgents:
             "agent_role": "负责技术指标分析、图表形态识别、趋势判断",
             "analysis": analysis,
             "focus_areas": ["技术指标", "趋势分析", "支撑阻力", "交易信号"],
+            "skill_data": skill_data,
+            "skills_used": ["TechnicalAnalysisSkill"],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
     
     def fundamental_analyst_agent(self, stock_info: Dict, financial_data: Dict = None, quarterly_data: Dict = None) -> Dict[str, Any]:
-        """基本面分析智能体"""
-        print("📊 基本面分析师正在分析中...")
+        """基本面分析智能体（增强版）"""
+        print("[DATA] 基本面分析师正在分析中...")
+        
+        # 使用技能增强分析
+        skill_data = {}
+        if HAS_SKILLS:
+            try:
+                symbol = stock_info.get('symbol', '')
+                
+                # 获取财务指标
+                skill_data['financial_indicators'] = self.financial_report.get_financial_indicators(symbol)
+                print(f"   [OK] 获取到财务指标")
+                
+                # 分析财务健康
+                if skill_data['financial_indicators']:
+                    skill_data['health_analysis'] = self.financial_report.analyze_financial_health(skill_data['financial_indicators'])
+                    print(f"   [OK] 财务健康评估: {skill_data['health_analysis'].get('overall', 'unknown')}")
+                
+                # 获取估值指标
+                skill_data['valuation'] = self.fundamental_skill.get_valuation_metrics(symbol)
+                
+                # 搜索财报
+                skill_data['reports'] = self.financial_report.search_financial_reports(symbol)
+                print(f"   [OK] 找到 {len(skill_data.get('reports', []))} 份财报")
+                
+            except Exception as e:
+                print(f"   [WARN] 技能增强失败: {e}")
         
         # 如果有季报数据，显示数据来源
         if quarterly_data and quarterly_data.get('data_success'):
             income_count = quarterly_data.get('income_statement', {}).get('periods', 0) if quarterly_data.get('income_statement') else 0
             balance_count = quarterly_data.get('balance_sheet', {}).get('periods', 0) if quarterly_data.get('balance_sheet') else 0
             cash_flow_count = quarterly_data.get('cash_flow', {}).get('periods', 0) if quarterly_data.get('cash_flow') else 0
-            print(f"   ✓ 已获取季报数据：利润表{income_count}期，资产负债表{balance_count}期，现金流量表{cash_flow_count}期")
+            print(f"   [*] 已获取季报数据：利润表{income_count}期，资产负债表{balance_count}期，现金流量表{cash_flow_count}期")
         else:
-            print("   ⚠ 未获取到季报数据，将基于基本财务数据分析")
-        
-        time.sleep(1)
+            print("   [*] 未获取到季报数据，将基于基本财务数据分析")
         
         analysis = self.deepseek_client.fundamental_analysis(stock_info, financial_data, quarterly_data)
         
@@ -47,21 +113,43 @@ class StockAnalysisAgents:
             "agent_role": "负责公司财务分析、行业研究、估值分析",
             "analysis": analysis,
             "focus_areas": ["财务指标", "行业分析", "公司价值", "成长性", "季报趋势"],
-            "quarterly_data": quarterly_data,  # 保存季报数据以供后续使用
+            "quarterly_data": quarterly_data,
+            "skill_data": skill_data,
+            "skills_used": ["FinancialReportSkill", "FundamentalAnalysisSkill"],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
     
     def fund_flow_analyst_agent(self, stock_info: Dict, indicators: Dict, fund_flow_data: Dict = None) -> Dict[str, Any]:
-        """资金面分析智能体"""
-        print("💰 资金面分析师正在分析中...")
+        """资金面分析智能体（增强版）"""
+        print("[MONEY] 资金面分析师正在分析中...")
+        
+        # 使用技能增强分析
+        skill_data = {}
+        if HAS_SKILLS:
+            try:
+                symbol = stock_info.get('symbol', '')
+                
+                # 获取个股资金流向
+                skill_data['stock_fund_flow'] = self.fund_flow_skill.get_stock_fund_flow(symbol)
+                print(f"   [OK] 获取到个股资金流向")
+                
+                # 获取北向资金
+                skill_data['north_fund'] = self.fund_flow_skill.get_north_fund_flow()
+                print(f"   [OK] 获取到北向资金数据")
+                
+                # 分析资金流向
+                if skill_data['stock_fund_flow']:
+                    skill_data['flow_analysis'] = self.fund_flow_skill.analyze_fund_flow(skill_data['stock_fund_flow'])
+                    print(f"   [OK] 资金流向分析: {skill_data['flow_analysis'].get('trend', 'unknown')}")
+                
+            except Exception as e:
+                print(f"   [WARN] 技能增强失败: {e}")
         
         # 如果有资金流向数据，显示数据来源
         if fund_flow_data and fund_flow_data.get('data_success'):
-            print("   ✓ 已获取资金流向数据（akshare数据源）")
+            print("   [*] 已获取资金流向数据（akshare数据源）")
         else:
-            print("   ⚠ 未获取到资金流向数据，将基于技术指标分析")
-        
-        time.sleep(1)
+            print("   [*] 未获取到资金流向数据，将基于技术指标分析")
         
         analysis = self.deepseek_client.fund_flow_analysis(stock_info, indicators, fund_flow_data)
         
@@ -70,21 +158,40 @@ class StockAnalysisAgents:
             "agent_role": "负责资金流向分析、主力行为研究、市场情绪判断", 
             "analysis": analysis,
             "focus_areas": ["资金流向", "主力动向", "市场情绪", "流动性"],
-            "fund_flow_data": fund_flow_data,  # 保存资金流向数据以供后续使用
+            "fund_flow_data": fund_flow_data,
+            "skill_data": skill_data,
+            "skills_used": ["FundFlowSkill"],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
     
     def risk_management_agent(self, stock_info: Dict, indicators: Dict, risk_data: Dict = None) -> Dict[str, Any]:
         """风险管理智能体（增强版）"""
-        print("⚠️ 风险管理师正在评估中...")
+        print("[WARN] 风险管理师正在评估中...")
+        
+        # 使用技能增强分析
+        skill_data = {}
+        if HAS_SKILLS:
+            try:
+                symbol = stock_info.get('symbol', '')
+                
+                # 获取风险数据
+                skill_data['risk_data'] = self.risk_skill.get_risk_data(symbol)
+                print(f"   [OK] 获取到风险数据")
+                
+                # 评估风险水平
+                skill_data['risk_assessment'] = self.risk_skill.assess_risk_level(
+                    skill_data['risk_data'], indicators
+                )
+                print(f"   [OK] 风险评估: {skill_data['risk_assessment'].get('level', 'unknown')}")
+                
+            except Exception as e:
+                print(f"   [WARN] 技能增强失败: {e}")
         
         # 如果有风险数据，显示数据来源
         if risk_data and risk_data.get('data_success'):
-            print("   ✓ 已获取问财风险数据（限售解禁、大股东减持、重要事件）")
+            print("   [*] 已获取问财风险数据（限售解禁、大股东减持、重要事件）")
         else:
-            print("   ⚠ 未获取到风险数据，将基于基本信息分析")
-        
-        time.sleep(1)
+            print("   [*] 未获取到风险数据，将基于基本信息分析")
         
         # 构建风险数据文本
         risk_data_text = ""
@@ -117,7 +224,7 @@ class StockAnalysisAgents:
 - 波动率指标等
 {risk_data_text}
 
-⚠️ 重要提示：以上风险数据是从问财（pywencai）实时查询的完整原始数据，请你：
+[WARN] 重要提示：以上风险数据是从问财（pywencai）实时查询的完整原始数据，请你：
 1. 仔细解析每一条记录的所有字段信息
 2. 识别数据中的关键风险点（时间、规模、频率、股东身份等）
 3. 对数据进行深度分析，不要遗漏任何重要信息
@@ -218,16 +325,37 @@ class StockAnalysisAgents:
         }
     
     def market_sentiment_agent(self, stock_info: Dict, sentiment_data: Dict = None) -> Dict[str, Any]:
-        """市场情绪分析智能体"""
-        print("📈 市场情绪分析师正在分析中...")
+        """市场情绪分析智能体（增强版）"""
+        print("[UP] 市场情绪分析师正在分析中...")
+        
+        # 使用技能增强分析
+        skill_data = {}
+        if HAS_SKILLS:
+            try:
+                # 获取市场情绪数据
+                skill_data['market_sentiment'] = self.sentiment_skill.get_market_sentiment()
+                print(f"   [OK] 获取到市场情绪数据")
+                
+                # 计算情绪得分
+                skill_data['sentiment_score'] = self.sentiment_skill.calculate_sentiment_score(
+                    skill_data['market_sentiment']
+                )
+                
+                # 分析市场情绪
+                skill_data['mood_analysis'] = self.sentiment_skill.analyze_market_mood(
+                    skill_data['sentiment_score']
+                )
+                print(f"   [OK] 情绪得分: {skill_data['sentiment_score']:.1f}")
+                print(f"   [OK] 市场情绪: {skill_data['mood_analysis'].get('level', 'unknown')}")
+                
+            except Exception as e:
+                print(f"   [WARN] 技能增强失败: {e}")
         
         # 如果有市场情绪数据，显示数据来源
         if sentiment_data and sentiment_data.get('data_success'):
-            print("   ✓ 已获取市场情绪数据（ARBR、换手率、涨跌停等）")
+            print("   [*] 已获取市场情绪数据（ARBR、换手率、涨跌停等）")
         else:
-            print("   ⚠ 未获取到详细情绪数据，将基于基本信息分析")
-        
-        time.sleep(1)
+            print("   [*] 未获取到详细情绪数据，将基于基本信息分析")
         
         # 构建带有市场情绪数据的prompt
         sentiment_data_text = ""
@@ -302,22 +430,49 @@ class StockAnalysisAgents:
             "analysis": analysis,
             "focus_areas": ["ARBR指标", "市场情绪", "投资者心理", "资金活跃度", "恐慌贪婪指数"],
             "sentiment_data": sentiment_data,  # 保存市场情绪数据以供后续使用
+            "skill_data": skill_data,
+            "skills_used": ["MarketSentimentSkill"],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
     
     def news_analyst_agent(self, stock_info: Dict, news_data: Dict = None) -> Dict[str, Any]:
-        """新闻分析智能体"""
-        print("📰 新闻分析师正在分析中...")
+        """新闻分析智能体（增强版）"""
+        print("[*] 新闻分析师正在分析中...")
+        
+        # 使用技能增强分析
+        skill_data = {}
+        if HAS_SKILLS:
+            try:
+                symbol = stock_info.get('symbol', '')
+                name = stock_info.get('name', '')
+                
+                # 获取股票新闻
+                skill_data['stock_news'] = self.news_skill.get_stock_news(symbol)
+                print(f"   [OK] 获取到 {len(skill_data.get('stock_news', []))} 条股票新闻")
+                
+                # 获取市场新闻
+                skill_data['market_news'] = self.news_skill.get_market_news()
+                print(f"   [OK] 获取到 {len(skill_data.get('market_news', []))} 条市场新闻")
+                
+                # 分析新闻情绪
+                all_news = skill_data.get('stock_news', []) + skill_data.get('market_news', [])
+                skill_data['news_sentiment'] = self.news_skill.analyze_news_sentiment(all_news)
+                print(f"   [OK] 新闻情绪: {skill_data['news_sentiment'].get('overall', 'unknown')}")
+                
+                # 搜索公司公告
+                skill_data['announcements'] = self.web_search.search_company_announcements(symbol)
+                print(f"   [OK] 获取到 {len(skill_data.get('announcements', []))} 条公司公告")
+                
+            except Exception as e:
+                print(f"   [WARN] 技能增强失败: {e}")
         
         # 如果有新闻数据，显示数据来源
         if news_data and news_data.get('data_success'):
             news_count = news_data.get('news_data', {}).get('count', 0) if news_data.get('news_data') else 0
             source = news_data.get('source', 'unknown')
-            print(f"   ✓ 已从 {source} 获取 {news_count} 条新闻")
+            print(f"   [*] 已从 {source} 获取 {news_count} 条新闻")
         else:
-            print("   ⚠ 未获取到新闻数据，将基于基本信息分析")
-        
-        time.sleep(1)
+            print("   [*] 未获取到新闻数据，将基于基本信息分析")
         
         # 构建带有新闻数据的prompt
         news_text = ""
@@ -401,7 +556,9 @@ class StockAnalysisAgents:
             "agent_role": "负责新闻事件分析、舆情研究、重大事件影响评估",
             "analysis": analysis,
             "focus_areas": ["新闻解读", "舆情分析", "事件影响", "市场反应", "投资机会"],
-            "news_data": news_data,  # 保存新闻数据以供后续使用
+            "news_data": news_data,
+            "skill_data": skill_data,
+            "skills_used": ["NewsAnalysisSkill", "WebSearchSkill"],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
     
@@ -409,13 +566,15 @@ class StockAnalysisAgents:
                                  financial_data: Dict = None, fund_flow_data: Dict = None, 
                                  sentiment_data: Dict = None, news_data: Dict = None,
                                  quarterly_data: Dict = None, risk_data: Dict = None,
-                                 enabled_analysts: Dict = None) -> Dict[str, Any]:
+                                 enabled_analysts: Dict = None, progress_callback=None) -> Dict[str, Any]:
         """运行多智能体分析
         
         Args:
             enabled_analysts: 字典，指定哪些分析师参与分析
                 例如: {'technical': True, 'fundamental': True, ...}
                 如果为None，则运行所有分析师
+            progress_callback: 进度回调函数，接收(analyst_name, status)参数
+                status: 'running' | 'completed' | 'error'
         """
         # 如果未指定，默认所有分析师都参与
         if enabled_analysts is None:
@@ -428,50 +587,113 @@ class StockAnalysisAgents:
                 'news': True
             }
         
-        print("🚀 启动多智能体股票分析系统...")
+        print("[START] 启动多智能体股票分析系统...")
         print("=" * 50)
         
         # 显示参与分析的分析师
         active_analysts = [name for name, enabled in enabled_analysts.items() if enabled]
-        print(f"📋 参与分析的分析师: {', '.join(active_analysts)}")
+        print(f"[LIST] 参与分析的分析师: {', '.join(active_analysts)}")
         print("=" * 50)
+        
+        # 分析师名称映射
+        analyst_names = {
+            'technical': '技术分析师',
+            'fundamental': '基本面分析师',
+            'fund_flow': '资金面分析师',
+            'risk': '风险管理师',
+            'sentiment': '市场情绪分析师',
+            'news': '新闻分析师'
+        }
         
         # 并行运行各个分析师
         agents_results = {}
         
         # 技术面分析
         if enabled_analysts.get('technical', True):
-            agents_results["technical"] = self.technical_analyst_agent(stock_info, stock_data, indicators)
+            if progress_callback:
+                progress_callback('technical', 'running', analyst_names['technical'])
+            try:
+                agents_results["technical"] = self.technical_analyst_agent(stock_info, stock_data, indicators)
+                if progress_callback:
+                    progress_callback('technical', 'completed', analyst_names['technical'])
+            except Exception as e:
+                if progress_callback:
+                    progress_callback('technical', 'error', analyst_names['technical'])
+                print(f"[ERROR] 技术分析师出错: {e}")
         
         # 基本面分析
         if enabled_analysts.get('fundamental', True):
-            agents_results["fundamental"] = self.fundamental_analyst_agent(stock_info, financial_data, quarterly_data)
+            if progress_callback:
+                progress_callback('fundamental', 'running', analyst_names['fundamental'])
+            try:
+                agents_results["fundamental"] = self.fundamental_analyst_agent(stock_info, financial_data, quarterly_data)
+                if progress_callback:
+                    progress_callback('fundamental', 'completed', analyst_names['fundamental'])
+            except Exception as e:
+                if progress_callback:
+                    progress_callback('fundamental', 'error', analyst_names['fundamental'])
+                print(f"[ERROR] 基本面分析师出错: {e}")
         
         # 资金面分析（传入资金流向数据）
         if enabled_analysts.get('fund_flow', True):
-            agents_results["fund_flow"] = self.fund_flow_analyst_agent(stock_info, indicators, fund_flow_data)
+            if progress_callback:
+                progress_callback('fund_flow', 'running', analyst_names['fund_flow'])
+            try:
+                agents_results["fund_flow"] = self.fund_flow_analyst_agent(stock_info, indicators, fund_flow_data)
+                if progress_callback:
+                    progress_callback('fund_flow', 'completed', analyst_names['fund_flow'])
+            except Exception as e:
+                if progress_callback:
+                    progress_callback('fund_flow', 'error', analyst_names['fund_flow'])
+                print(f"[ERROR] 资金面分析师出错: {e}")
         
         # 风险管理分析（传入风险数据）
         if enabled_analysts.get('risk', True):
-            agents_results["risk_management"] = self.risk_management_agent(stock_info, indicators, risk_data)
+            if progress_callback:
+                progress_callback('risk', 'running', analyst_names['risk'])
+            try:
+                agents_results["risk_management"] = self.risk_management_agent(stock_info, indicators, risk_data)
+                if progress_callback:
+                    progress_callback('risk', 'completed', analyst_names['risk'])
+            except Exception as e:
+                if progress_callback:
+                    progress_callback('risk', 'error', analyst_names['risk'])
+                print(f"[ERROR] 风险管理师出错: {e}")
         
         # 市场情绪分析（传入市场情绪数据）
         if enabled_analysts.get('sentiment', False):
-            agents_results["market_sentiment"] = self.market_sentiment_agent(stock_info, sentiment_data)
+            if progress_callback:
+                progress_callback('sentiment', 'running', analyst_names['sentiment'])
+            try:
+                agents_results["market_sentiment"] = self.market_sentiment_agent(stock_info, sentiment_data)
+                if progress_callback:
+                    progress_callback('sentiment', 'completed', analyst_names['sentiment'])
+            except Exception as e:
+                if progress_callback:
+                    progress_callback('sentiment', 'error', analyst_names['sentiment'])
+                print(f"[ERROR] 市场情绪分析师出错: {e}")
         
         # 新闻分析（传入新闻数据）
         if enabled_analysts.get('news', False):
-            agents_results["news"] = self.news_analyst_agent(stock_info, news_data)
+            if progress_callback:
+                progress_callback('news', 'running', analyst_names['news'])
+            try:
+                agents_results["news"] = self.news_analyst_agent(stock_info, news_data)
+                if progress_callback:
+                    progress_callback('news', 'completed', analyst_names['news'])
+            except Exception as e:
+                if progress_callback:
+                    progress_callback('news', 'error', analyst_names['news'])
+                print(f"[ERROR] 新闻分析师出错: {e}")
         
-        print("✅ 所有已选择的分析师完成分析")
+        print("[OK] 所有已选择的分析师完成分析")
         print("=" * 50)
         
         return agents_results
     
     def conduct_team_discussion(self, agents_results: Dict[str, Any], stock_info: Dict) -> str:
         """进行团队讨论"""
-        print("🤝 分析团队正在进行综合讨论...")
-        time.sleep(2)
+        print("[*] 分析团队正在进行综合讨论...")
         
         # 收集参与分析的分析师名单和报告
         participants = []
@@ -532,15 +754,14 @@ class StockAnalysisAgents:
         
         discussion_result = self.deepseek_client.call_api(messages, max_tokens=6000)
         
-        print("✅ 团队讨论完成")
+        print("[OK] 团队讨论完成")
         return discussion_result
     
     def make_final_decision(self, discussion_result: str, stock_info: Dict, indicators: Dict) -> Dict[str, Any]:
         """制定最终投资决策"""
-        print("📋 正在制定最终投资决策...")
-        time.sleep(1)
+        print("[LIST] 正在制定最终投资决策...")
         
         decision = self.deepseek_client.final_decision(discussion_result, stock_info, indicators)
         
-        print("✅ 最终投资决策完成")
+        print("[OK] 最终投资决策完成")
         return decision
