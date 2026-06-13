@@ -714,10 +714,14 @@ _此消息由AI股票分析系统自动发送_"""
             msg.attach(part1)
             msg.attach(part2)
             
-            with smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port']) as server:
+            if self.config['smtp_port'] == 465:
+                server = smtplib.SMTP_SSL(self.config['smtp_server'], self.config['smtp_port'], timeout=30)
+            else:
+                server = smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port'], timeout=30)
                 server.starttls()
-                server.login(self.config['email_from'], self.config['email_password'])
-                server.send_message(msg)
+            server.login(self.config['email_from'], self.config['email_password'])
+            server.send_message(msg)
+            server.quit()
             
             return True
             

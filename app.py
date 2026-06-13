@@ -43,227 +43,395 @@ def show_current_model_info():
 # 自定义CSS样式 - 专业版
 st.markdown("""
 <style>
-    /* 全局样式 */
-    .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-attachment: fixed;
+    /* ═══════════════════════════════════════════════════
+       Glassmorphism Design System — AI 股票分析系统
+       Frosted glass cards · Gradient mesh bg · Soft depth
+       ═══════════════════════════════════════════════════ */
+
+    /* ── CSS Variables ── */
+    :root {
+        --glass-bg: rgba(255, 255, 255, 0.12);
+        --glass-border: rgba(255, 255, 255, 0.18);
+        --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        --glass-blur: blur(16px);
+        --glass-radius: 16px;
+        --accent: #667eea;
+        --accent-glow: rgba(102, 126, 234, 0.25);
+        --text-primary: #1a1a2e;
+        --text-secondary: #555;
+        --text-muted: #999;
+        --success: #27ae60;
+        --warning: #f39c12;
+        --error: #e74c3c;
+        --info: #3498db;
     }
-    
-    .stApp {
-        background: transparent;
+
+    /* ── Global: Gradient Mesh Background ── */
+    .main, .stApp {
+        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%) !important;
+        background-attachment: fixed !important;
+        min-height: 100vh;
     }
-    
-    /* 主容器 */
+
+    /* ── Main Container: Glass Card ── */
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 20px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        margin-top: 1rem;
+        padding: 2rem 2.5rem !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px !important;
+        box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.1);
+        margin-top: 1rem !important;
     }
-    
-    /* 顶部导航栏 */
+
+    /* ── Top Navigation: Glass Header ── */
     .top-nav {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem 2rem;
-        border-radius: 15px;
+        background: linear-gradient(135deg, rgba(102,126,234,0.3), rgba(118,75,162,0.3));
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        padding: 1.8rem 2rem;
+        border-radius: var(--glass-radius);
         margin-bottom: 2rem;
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
     }
-    
+
     .nav-title {
         font-size: 2rem;
         font-weight: 800;
-        color: white;
+        color: #ffffff;
         text-align: center;
         margin: 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         letter-spacing: 1px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
-    
+
     .nav-subtitle {
         text-align: center;
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
         margin-top: 0.5rem;
         font-weight: 300;
+        letter-spacing: 0.5px;
     }
-    
-    /* 标签页样式 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem 2rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        height: 60px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        color: white;
-        font-weight: 600;
-        font-size: 1.1rem;
-        padding: 0 2rem;
-        border: none;
-        transition: all 0.3s ease;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: white !important;
-        color: #667eea !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* 侧边栏美化 */
+
+    /* ── Sidebar: Frosted Glass ── */
     .css-1d391kg, [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-        padding-top: 2rem;
+        background: linear-gradient(180deg, rgba(15,12,41,0.95), rgba(48,43,99,0.95)) !important;
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 1.5rem;
     }
-    
+
     .css-1d391kg h1, .css-1d391kg h2, .css-1d391kg h3,
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: white !important;
-    }
-    
-    .css-1d391kg .stMarkdown, [data-testid="stSidebar"] .stMarkdown {
         color: rgba(255, 255, 255, 0.95) !important;
     }
-    
-    /* 分析师卡片 */
-    .agent-card {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin: 1rem 0;
-        border-left: 5px solid #667eea;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
+
+    .css-1d391kg .stMarkdown, [data-testid="stSidebar"] .stMarkdown {
+        color: rgba(255, 255, 255, 0.8) !important;
     }
-    
-    .agent-card:hover {
-        transform: translateX(5px);
+
+    /* Sidebar divider */
+    .css-1d391kg hr, [data-testid="stSidebar"] hr {
+        border-color: rgba(255, 255, 255, 0.1) !important;
     }
-    
-    /* 决策卡片 */
-    .decision-card {
-        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        border: 3px solid #4caf50;
-        margin: 1.5rem 0;
-        box-shadow: 0 8px 30px rgba(76, 175, 80, 0.2);
+
+    /* ── Tabs: Glass Style ── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        padding: 0.8rem 1rem;
+        border-radius: var(--glass-radius);
+        border: 1px solid var(--glass-border);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
     }
-    
-    /* 警告卡片 */
-    .warning-card {
-        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        border-left: 5px solid #ff9800;
-        box-shadow: 0 4px 15px rgba(255, 152, 0, 0.2);
-    }
-    
-    /* 指标卡片 */
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
+
+    .stTabs [data-baseweb="tab"] {
+        height: 48px;
+        background: transparent;
         border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        text-align: center;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border-top: 4px solid #667eea;
+        color: rgba(255, 255, 255, 0.6);
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0 1.5rem;
+        border: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    
+
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(102, 126, 234, 0.25) !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
+        border: 1px solid rgba(102, 126, 234, 0.4);
+    }
+
+    /* ── Cards: Glass Variants ── */
+    .agent-card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        padding: 1.5rem;
+        border-radius: var(--glass-radius);
+        margin: 1rem 0;
+        border-left: 4px solid var(--accent);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 4px solid var(--accent);
+        box-shadow: var(--glass-shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .agent-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .decision-card {
+        background: rgba(39, 174, 96, 0.12);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        padding: 2rem;
+        border-radius: var(--glass-radius);
+        border: 1px solid rgba(39, 174, 96, 0.3);
+        margin: 1.5rem 0;
+        box-shadow: 0 8px 32px rgba(39, 174, 96, 0.1);
+    }
+
+    .warning-card {
+        background: rgba(243, 156, 18, 0.1);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        padding: 1.5rem;
+        border-radius: var(--glass-radius);
+        border-left: 4px solid var(--warning);
+        border: 1px solid rgba(243, 156, 18, 0.2);
+        border-left: 4px solid var(--warning);
+        box-shadow: var(--glass-shadow);
+    }
+
+    .metric-card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        padding: 1.5rem;
+        border-radius: var(--glass-radius);
+        text-align: center;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
     .metric-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        border-color: rgba(102, 126, 234, 0.4);
     }
-    
-    /* 按钮美化 */
+
+    /* ── Buttons: Glass Accent ── */
     .stButton>button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 0.75rem 2rem;
+        background: linear-gradient(135deg, rgba(102,126,234,0.3), rgba(118,75,162,0.3));
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 0.6rem 1.8rem;
         font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        font-size: 0.95rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
-    
+
     .stButton>button:hover {
+        background: linear-gradient(135deg, rgba(102,126,234,0.5), rgba(118,75,162,0.5));
         transform: translateY(-2px);
-        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.25);
+        border-color: rgba(255, 255, 255, 0.35);
     }
-    
-    /* 输入框美化 */
-    .stTextInput>div>div>input {
-        border-radius: 10px;
-        border: 2px solid #e0e0e0;
-        padding: 0.75rem;
-        font-size: 1rem;
-        transition: border-color 0.3s ease;
+
+    .stButton>button:active {
+        transform: translateY(0);
     }
-    
-    .stTextInput>div>div>input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+
+    /* Primary button */
+    .stButton>button[kind="primary"], button[data-testid="stBaseButton-primary"] {
+        background: linear-gradient(135deg, var(--accent), #764ba2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        box-shadow: 0 4px 20px var(--accent-glow) !important;
     }
-    
-    /* 进度条美化 */
+
+    /* ── Input Fields: Glass ── */
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        background: rgba(255, 255, 255, 0.06) !important;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        color: #ffffff !important;
+        padding: 0.75rem !important;
+        transition: all 0.3s ease;
+    }
+
+    .stTextInput>div>div>input:focus, .stTextArea>div>div>textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-glow) !important;
+    }
+
+    /* Select box */
+    .stSelectbox>div>div {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+    }
+
+    /* ── Progress Bar: Accent Gradient ── */
     .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(90deg, var(--accent), #764ba2, #e05fc4);
+        border-radius: 8px;
     }
-    
-    /* 成功/错误/警告/信息消息框 */
+
+    /* ── Alert Boxes: Glass Tinted ── */
     .stSuccess, .stError, .stWarning, .stInfo {
-        border-radius: 10px;
-        padding: 1rem;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        background: rgba(255, 255, 255, 0.06) !important;
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border-radius: 12px !important;
+        padding: 1rem !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    /* 图表容器 */
+
+    .stSuccess {
+        border-left: 4px solid var(--success) !important;
+        background: rgba(39, 174, 96, 0.1) !important;
+    }
+
+    .stError {
+        border-left: 4px solid var(--error) !important;
+        background: rgba(231, 76, 60, 0.1) !important;
+    }
+
+    .stWarning {
+        border-left: 4px solid var(--warning) !important;
+        background: rgba(243, 156, 18, 0.1) !important;
+    }
+
+    .stInfo {
+        border-left: 4px solid var(--info) !important;
+        background: rgba(52, 152, 219, 0.1) !important;
+    }
+
+    /* ── Charts: Glass Container ── */
     .js-plotly-plot {
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Expander美化 */
-    .streamlit-expanderHeader {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        border-radius: 10px;
-        font-weight: 600;
-    }
-    
-    /* 数据框美化 */
-    .dataframe {
-        border-radius: 10px;
+        border-radius: var(--glass-radius);
+        box-shadow: var(--glass-shadow);
         overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
-    
-    /* 隐藏Streamlit默认元素 */
+
+    /* ── Expander: Glass ── */
+    .streamlit-expanderHeader {
+        background: rgba(255, 255, 255, 0.06) !important;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px !important;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    /* ── DataFrame: Glass ── */
+    .dataframe {
+        border-radius: var(--glass-radius) !important;
+        overflow: hidden;
+        box-shadow: var(--glass-shadow);
+    }
+
+    /* Make data tables readable on dark bg */
+    .dataframe th {
+        background: rgba(102, 126, 234, 0.15) !important;
+        color: #ffffff !important;
+    }
+    .dataframe td {
+        background: rgba(255, 255, 255, 0.03) !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    /* ── Checkbox & Radio: Glass ── */
+    .stCheckbox>label, .stRadio>label {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    /* ── Metric values ── */
+    [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+    [data-testid="stMetricDelta"] > div {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    /* ── Scrollbar: Thin Glass ── */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ── Hide Streamlit Defaults ── */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* 响应式设计 */
+    header {visibility: hidden;}
+
+    /* ── Global Text: Light on Dark ── */
+    .stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown span {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+
+    /* ── Responsive ── */
     @media (max-width: 768px) {
+        .block-container {
+            padding: 1rem 1.2rem !important;
+        }
         .nav-title {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
         }
         .stTabs [data-baseweb="tab"] {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             padding: 0 1rem;
         }
+        .top-nav {
+            padding: 1.2rem 1rem;
+        }
+    }
+
+    /* ── Animation: Subtle Fade-In ── */
+    @keyframes glassFadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .block-container {
+        animation: glassFadeIn 0.4s ease-out;
     }
 </style>
 """, unsafe_allow_html=True)
